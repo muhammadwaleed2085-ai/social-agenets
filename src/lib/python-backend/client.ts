@@ -177,7 +177,7 @@ function shouldRetryRequest(error: AxiosError, retryCount: number): boolean {
     }
 
     // Retry on specific status codes
-    return RETRY_CONFIG.retryableStatusCodes.includes(error.response.status);
+    return (RETRY_CONFIG.retryableStatusCodes as readonly number[]).includes(error.response.status);
 }
 
 /**

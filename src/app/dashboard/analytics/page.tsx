@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 // Dynamic import with no SSR to prevent hydration errors with Recharts
 const AnalyticsDashboard = dynamic(
     () => import('@/components/analytics/AnalyticsDashboard'),
-    { 
+    {
         ssr: false,
         loading: () => (
             <div className="flex items-center justify-center h-64">
