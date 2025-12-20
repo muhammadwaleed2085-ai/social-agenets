@@ -75,5 +75,5 @@ scripts/
 *.lock
 !package-lock.json
 !uv.lock
-python_backend/uv.lock
+!python_backend/uv.lock
 
