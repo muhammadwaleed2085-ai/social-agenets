@@ -80,11 +80,36 @@ function createBackendClient(): AxiosInstance {
                 _authRefreshed?: boolean;
             };
 
-            console.error(
-                `[Python Backend] Error ${error.response?.status || 'NETWORK'}:`,
-                error.message,
-                error.response?.data
-            );
+            // Detailed error logging for debugging
+            const errorDetails = {
+                status: error.response?.status || 'NETWORK',
+                message: error.message,
+                url: config?.url,
+                baseURL: config?.baseURL,
+                code: error.code,
+                cause: error.cause,
+            };
+
+            // Network errors (CORS, connectivity, DNS, etc.)
+            if (!error.response) {
+                console.error(
+                    `[Python Backend] NETWORK ERROR - Request failed before reaching server:`,
+                    `\n  URL: ${config?.baseURL}${config?.url}`,
+                    `\n  Error: ${error.message}`,
+                    `\n  Code: ${error.code}`,
+                    `\n  This could be caused by:`,
+                    `\n    - CORS policy blocking the request`,
+                    `\n    - Backend server not running`,
+                    `\n    - Network connectivity issues`,
+                    `\n    - Invalid URL configuration`
+                );
+            } else {
+                console.error(
+                    `[Python Backend] Error ${error.response?.status}:`,
+                    error.message,
+                    error.response?.data
+                );
+            }
 
             const isUnauthorized = error.response?.status === 401;
             if (isUnauthorized && config && !config._authRefreshed) {
@@ -535,16 +560,75 @@ export async function streamPost<T>(
 
 /**
  * Check if Python backend is healthy
+ * Also useful for debugging connectivity issues
  */
 export async function checkHealth(): Promise<boolean> {
+    const healthUrl = `${PYTHON_BACKEND_URL}/health`;
+    console.log(`[Python Backend] Checking health at: ${healthUrl}`);
+
     try {
-        const response = await axios.get(`${PYTHON_BACKEND_URL}/health`, {
+        const response = await axios.get(healthUrl, {
             timeout: 5000,
         });
+        console.log(`[Python Backend] Health check passed:`, response.data);
         return response.data?.status === 'healthy';
-    } catch {
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.error(`[Python Backend] Health check failed:`, {
+                url: healthUrl,
+                message: error.message,
+                code: error.code,
+                response: error.response?.status,
+            });
+        } else {
+            console.error(`[Python Backend] Health check error:`, error);
+        }
         return false;
     }
+}
+
+/**
+ * Debug connectivity to Python backend
+ * Returns detailed diagnostics
+ */
+export async function debugConnectivity(): Promise<{
+    backendUrl: string;
+    healthUrl: string;
+    isHealthy: boolean;
+    error?: string;
+    suggestion?: string;
+}> {
+    const healthUrl = `${PYTHON_BACKEND_URL}/health`;
+    const diagnostics: {
+        backendUrl: string;
+        healthUrl: string;
+        isHealthy: boolean;
+        error?: string;
+        suggestion?: string;
+    } = {
+        backendUrl: PYTHON_BACKEND_URL,
+        healthUrl,
+        isHealthy: false,
+    };
+
+    try {
+        const response = await axios.get(healthUrl, { timeout: 5000 });
+        diagnostics.isHealthy = response.data?.status === 'healthy';
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            if (!error.response) {
+                diagnostics.error = 'Network error - request did not reach server';
+                diagnostics.suggestion = 'Check if backend is running and CORS is configured correctly';
+            } else {
+                diagnostics.error = `HTTP ${error.response.status}`;
+            }
+        } else {
+            diagnostics.error = String(error);
+        }
+    }
+
+    console.log('[Python Backend] Connectivity diagnostics:', diagnostics);
+    return diagnostics;
 }
 
 // =============================================================================

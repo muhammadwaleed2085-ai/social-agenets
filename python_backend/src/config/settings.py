@@ -76,6 +76,26 @@ class Settings(BaseSettings):
         # Always include APP_URL
         if self.APP_URL not in origins:
             origins.append(self.APP_URL)
+        
+        # Add common variations to avoid CORS issues
+        additional_origins = []
+        for origin in origins:
+            # Add https version if http
+            if origin.startswith('http://') and 'localhost' not in origin:
+                https_version = origin.replace('http://', 'https://')
+                if https_version not in origins and https_version not in additional_origins:
+                    additional_origins.append(https_version)
+            # Add without trailing slash
+            if origin.endswith('/'):
+                no_slash = origin.rstrip('/')
+                if no_slash not in origins and no_slash not in additional_origins:
+                    additional_origins.append(no_slash)
+        
+        origins.extend(additional_origins)
+        
+        # Log CORS origins at startup for debugging
+        logger.info(f"CORS origins configured: {origins}")
+        
         return origins
     
     # Social Platform OAuth Credentials

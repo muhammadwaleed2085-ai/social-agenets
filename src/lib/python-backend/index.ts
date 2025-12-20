@@ -56,6 +56,7 @@ export {
     streamPost,
     createEventSource,
     checkHealth,
+    debugConnectivity,
     isBackendError,
     type BackendError,
 } from './client';
