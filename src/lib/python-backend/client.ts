@@ -16,7 +16,6 @@ import axios, {
     AxiosRequestConfig,
     InternalAxiosRequestConfig,
 } from 'axios';
-import { createClient } from '@supabase/supabase-js';
 import {
     PYTHON_BACKEND_URL,
     API_BASE_URL,
@@ -122,7 +121,7 @@ function createBackendClient(): AxiosInstance {
 
 /**
  * Get auth token from Supabase session
- * Throws error if Supabase is not configured
+ * Uses the singleton Supabase client to avoid multiple GoTrueClient instances
  */
 async function getAuthToken(): Promise<string | null> {
     try {
@@ -131,19 +130,16 @@ async function getAuthToken(): Promise<string | null> {
             return null;
         }
 
-        // Try to get Supabase URL and key from environment
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // Import the singleton Supabase client dynamically to avoid circular dependencies
+        const { getSupabaseClient, isSupabaseConfigured } = await import('@/lib/supabase/client');
 
-        if (!supabaseUrl || !supabaseKey) {
-            throw new Error(
-                '[Python Backend] Supabase not configured. Cannot retrieve auth token. ' +
-                'Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
-            );
+        if (!isSupabaseConfigured()) {
+            console.warn('[Python Backend] Supabase not configured. Auth token will not be sent.');
+            return null;
         }
 
-        // Create Supabase client and get session
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        // Use the singleton client to get session
+        const supabase = getSupabaseClient();
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -154,7 +150,7 @@ async function getAuthToken(): Promise<string | null> {
         return session?.access_token || null;
     } catch (error) {
         console.error('[Python Backend] Failed to get auth token:', error);
-        throw error; // Re-throw to let caller handle
+        return null; // Don't throw - allow unauthenticated requests for public endpoints
     }
 }
 
