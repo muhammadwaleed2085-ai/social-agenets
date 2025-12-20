@@ -68,7 +68,8 @@ export interface UpdateBusinessSettingsInput {
  * Workspace API Client Class
  */
 class WorkspaceApiClient {
-    private baseUrl = '/api/v1/workspace'
+    // Note: backendClient already has /api/v1 as baseURL, so we only need /workspace
+    private baseUrl = '/workspace'
 
     /**
      * Get current workspace details
