@@ -96,8 +96,8 @@ app = FastAPI(
     description="Production-ready Python AI agent backend using LangGraph and FastAPI",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # Security headers middleware (first - runs last)
