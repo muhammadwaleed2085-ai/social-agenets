@@ -5,41 +5,134 @@
  * Supports environment-based configuration for development and production.
  */
 
-// Environment-based backend URL configuration
-// Normalize URL to handle various formats including Render's internal service URLs
-const rawBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:8000';
-export const PYTHON_BACKEND_URL = (() => {
-    let url = rawBackendUrl.trim();
+// =============================================================================
+// ENVIRONMENT DETECTION
+// =============================================================================
 
-    // Handle Render's internal hostport format: "service-name:8000"
-    // Transform to external URL: "https://service-name.onrender.com"
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+const IS_BROWSER = typeof window !== 'undefined';
+
+// =============================================================================
+// BACKEND URL CONFIGURATION WITH STRICT VALIDATION
+// =============================================================================
+
+/**
+ * Validate and normalize backend URL with strict production requirements.
+ * Production-grade approach:
+ * - Fail fast on invalid configuration
+ * - Clear error messages for debugging
+ * - No silent fixes in production
+ * - Explicit logging of all transformations
+ */
+const rawBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL;
+
+export const PYTHON_BACKEND_URL = (() => {
+    // 1. VALIDATION: Require backend URL in production
+    if (!rawBackendUrl) {
+        const error = new Error(
+            '[Backend Config] CRITICAL: NEXT_PUBLIC_PYTHON_BACKEND_URL is not set.\n' +
+            'This environment variable is REQUIRED.\n' +
+            'Set it to your Python backend URL (e.g., https://your-backend.onrender.com)'
+        );
+
+        if (IS_PRODUCTION) {
+            // Fail immediately in production
+            throw error;
+        } else {
+            // Warn in development, use localhost fallback
+            console.error(error.message);
+            console.warn('[Backend Config] Falling back to http://localhost:8000 for development');
+            return 'http://localhost:8000';
+        }
+    }
+
+    let url = rawBackendUrl.trim();
+    const originalUrl = url;
+
+    // 2. HANDLE RENDER SERVICE NAMES
+    // Transform "service-name" or "service-name:8000" to "https://service-name.onrender.com"
     if (!url.includes('://') && !url.includes('localhost') && !url.includes('127.0.0.1')) {
-        // Remove port if present (e.g., ":8000")
-        url = url.replace(/:\d+$/, '');
-        // Add .onrender.com if not already a full domain
+        url = url.replace(/:\d+$/, ''); // Remove port
         if (!url.includes('.')) {
             url = `${url}.onrender.com`;
         }
-        // Add https:// for production
         url = `https://${url}`;
-    } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        // Local development URL without protocol
-        url = url.includes('localhost') || url.includes('127.0.0.1')
-            ? `http://${url}`
-            : `https://${url}`;
+        console.info(`[Backend Config] Transformed Render service name: ${originalUrl} → ${url}`);
+    }
+    // 3. ADD PROTOCOL IF MISSING
+    else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
+        url = isLocal ? `http://${url}` : `https://${url}`;
+        console.info(`[Backend Config] Added protocol: ${originalUrl} → ${url}`);
     }
 
-    // Production safety: Force HTTPS for all non-localhost URLs
-    // This prevents mixed content errors when frontend is served over HTTPS
-    if (url.startsWith('http://') &&
-        !url.includes('localhost') &&
-        !url.includes('127.0.0.1')) {
-        url = url.replace('http://', 'https://');
-        console.warn(`[Backend Config] Forced HTTPS for production URL: ${url}`);
+    // 4. PRODUCTION SECURITY: Enforce HTTPS
+    if (url.startsWith('http://')) {
+        const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
+
+        if (!isLocal) {
+            if (IS_PRODUCTION) {
+                // CRITICAL: In production, HTTP for non-localhost is a security violation
+                throw new Error(
+                    `[Backend Config] SECURITY ERROR: HTTP protocol detected for production URL.\n` +
+                    `Current URL: ${url}\n` +
+                    `NEXT_PUBLIC_PYTHON_BACKEND_URL must use HTTPS in production.\n` +
+                    `Update your environment variable to: ${url.replace('http://', 'https://')}`
+                );
+            } else {
+                // Development: Auto-fix with warning
+                const httpsUrl = url.replace('http://', 'https://');
+                console.warn(
+                    `[Backend Config] WARNING: Converting HTTP to HTTPS for development.\n` +
+                    `From: ${url}\n` +
+                    `To: ${httpsUrl}\n` +
+                    `This auto-conversion only works in development. Fix your env var for production.`
+                );
+                url = httpsUrl;
+            }
+        }
     }
 
-    // Remove trailing slash if present
-    return url.replace(/\/$/, '');
+    // 5. VALIDATE FINAL URL
+    try {
+        const parsedUrl = new URL(url);
+
+        // Ensure it's a valid HTTP/HTTPS URL
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            throw new Error(`Invalid protocol: ${parsedUrl.protocol}`);
+        }
+
+        // Production: Must be HTTPS (except localhost)
+        if (IS_PRODUCTION && parsedUrl.protocol === 'http:' &&
+            !parsedUrl.hostname.includes('localhost') &&
+            !parsedUrl.hostname.includes('127.0.0.1')) {
+            throw new Error('HTTP not allowed in production for non-localhost URLs');
+        }
+
+    } catch (error) {
+        throw new Error(
+            `[Backend Config] Invalid backend URL: ${url}\n` +
+            `Original: ${originalUrl}\n` +
+            `Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+    }
+
+    // 6. REMOVE TRAILING SLASH
+    const finalUrl = url.replace(/\/$/, '');
+
+    // 7. LOG FINAL CONFIGURATION
+    if (IS_BROWSER) {
+        console.info(
+            `[Backend Config] ✓ Backend URL configured:\n` +
+            `  Environment: ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}\n` +
+            `  URL: ${finalUrl}\n` +
+            `  Protocol: ${new URL(finalUrl).protocol}\n` +
+            `  Secure: ${finalUrl.startsWith('https://') ? 'YES ✓' : 'NO (localhost only)'}`
+        );
+    }
+
+    return finalUrl;
 })();
 
 // API version
@@ -47,6 +140,22 @@ export const API_VERSION = process.env.PYTHON_BACKEND_API_VERSION || 'v1';
 
 // Base API URL with version
 export const API_BASE_URL = `${PYTHON_BACKEND_URL}/api/${API_VERSION}`;
+
+// Validate BASE URL on module load
+if (IS_BROWSER && IS_PRODUCTION) {
+    try {
+        const baseUrl = new URL(API_BASE_URL);
+        if (baseUrl.protocol !== 'https:') {
+            console.error(
+                `[Backend Config] CRITICAL: API Base URL is not HTTPS in production!\n` +
+                `This will cause mixed content errors.\n` +
+                `Current: ${API_BASE_URL}`
+            );
+        }
+    } catch (error) {
+        console.error(`[Backend Config] Invalid API_BASE_URL: ${API_BASE_URL}`);
+    }
+}
 
 // Request timeout in milliseconds
 export const REQUEST_TIMEOUT =
