@@ -45,20 +45,16 @@ function createBackendClient(): AxiosInstance {
     // Request interceptor for auth token injection and logging
     client.interceptors.request.use(
         async (config: InternalAxiosRequestConfig) => {
-            // Try to get auth token from Supabase client
-            const token = await getAuthToken();
-            if (token && config.headers) {
-                config.headers.Authorization = `Bearer ${token}`;
+            const header = await getAuthHeader();
+            if (header.Authorization && config.headers) {
+                config.headers.Authorization = header.Authorization;
             }
-
-            // Log requests in development
             if (process.env.NODE_ENV === 'development') {
                 console.log(
                     `[Python Backend] ${config.method?.toUpperCase()} ${config.url}`,
                     config.data ? { body: config.data } : ''
                 );
             }
-
             return config;
         },
         (error: AxiosError) => {
@@ -70,7 +66,6 @@ function createBackendClient(): AxiosInstance {
     // Response interceptor for error handling and logging
     client.interceptors.response.use(
         (response) => {
-            // Log successful responses in development
             if (process.env.NODE_ENV === 'development') {
                 console.log(
                     `[Python Backend] Response ${response.status}:`,
@@ -82,22 +77,30 @@ function createBackendClient(): AxiosInstance {
         async (error: AxiosError<ApiError>) => {
             const config = error.config as InternalAxiosRequestConfig & {
                 _retryCount?: number;
+                _authRefreshed?: boolean;
             };
 
-            // Log errors
             console.error(
                 `[Python Backend] Error ${error.response?.status || 'NETWORK'}:`,
                 error.message,
                 error.response?.data
             );
 
-            // Check if we should retry
+            const isUnauthorized = error.response?.status === 401;
+            if (isUnauthorized && config && !config._authRefreshed) {
+                const newToken = await refreshAuthToken();
+                if (newToken && config.headers) {
+                    config.headers.Authorization = `Bearer ${newToken}`;
+                    config._authRefreshed = true;
+                    return client(config);
+                }
+            }
+
             const shouldRetry = shouldRetryRequest(error, config?._retryCount || 0);
 
             if (shouldRetry && config) {
                 config._retryCount = (config._retryCount || 0) + 1;
 
-                // Calculate delay with exponential backoff
                 const delay = calculateRetryDelay(config._retryCount);
 
                 console.log(
@@ -177,7 +180,6 @@ async function waitForSession(): Promise<void> {
  */
 async function getAuthToken(): Promise<string | null> {
     try {
-        // Check if we're in a browser environment
         if (typeof window === 'undefined') {
             return null;
         }
@@ -205,6 +207,57 @@ async function getAuthToken(): Promise<string | null> {
     } catch (error) {
         console.error('[Python Backend] Failed to get auth token:', error);
         return null; // Don't throw - allow unauthenticated requests for public endpoints
+    }
+}
+
+async function getServerAuthHeader(): Promise<Record<string, string>> {
+    try {
+        const { createClient } = await import('@/lib/supabase/server');
+        const supabase = await createClient();
+
+        // Try current session first
+        let { data: { session } } = await supabase.auth.getSession();
+
+        // If no access token, attempt a refresh (server-side) using cookies
+        if (!session?.access_token) {
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+            if (!refreshError) {
+                session = refreshData.session;
+            }
+        }
+
+        const token = session?.access_token;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+        return {};
+    }
+}
+
+async function getAuthHeader(): Promise<Record<string, string>> {
+    if (typeof window === 'undefined') {
+        return await getServerAuthHeader();
+    }
+    const token = await getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function refreshAuthToken(): Promise<string | null> {
+    try {
+        if (typeof window === 'undefined') {
+            return null;
+        }
+        const { getSupabaseClient, isSupabaseConfigured } = await import('@/lib/supabase/client');
+        if (!isSupabaseConfigured()) {
+            return null;
+        }
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+            return null;
+        }
+        return data.session?.access_token || null;
+    } catch {
+        return null;
     }
 }
 
