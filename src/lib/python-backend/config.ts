@@ -29,6 +29,15 @@ export const PYTHON_BACKEND_URL = (() => {
             : `https://${url}`;
     }
 
+    // Production safety: Force HTTPS for all non-localhost URLs
+    // This prevents mixed content errors when frontend is served over HTTPS
+    if (url.startsWith('http://') &&
+        !url.includes('localhost') &&
+        !url.includes('127.0.0.1')) {
+        url = url.replace('http://', 'https://');
+        console.warn(`[Backend Config] Forced HTTPS for production URL: ${url}`);
+    }
+
     // Remove trailing slash if present
     return url.replace(/\/$/, '');
 })();
