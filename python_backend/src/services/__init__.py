@@ -16,6 +16,7 @@ from .supabase_service import (
     db_select,
     db_insert,
     db_update,
+    db_upsert,
     db_delete,
     verify_jwt,
 )
@@ -56,6 +57,7 @@ __all__ = [
     "db_select",
     "db_insert",
     "db_update",
+    "db_upsert",
     "db_delete",
     "verify_jwt",
     # OAuth

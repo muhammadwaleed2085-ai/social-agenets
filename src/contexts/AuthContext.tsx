@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -15,9 +15,46 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
+  resetPassword: (email: string) => Promise<{ error: Error | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Rate limiting configuration
+const RATE_LIMIT_CONFIG = {
+  maxAttempts: 5,
+  baseDelay: 1000, // 1 second
+  maxDelay: 60000, // 60 seconds max
+}
+
+// Password validation
+const PASSWORD_REQUIREMENTS = {
+  minLength: 8,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumber: true,
+}
+
+function validatePassword(password: string): { valid: boolean; message: string } {
+  if (password.length < PASSWORD_REQUIREMENTS.minLength) {
+    return { valid: false, message: `Password must be at least ${PASSWORD_REQUIREMENTS.minLength} characters` }
+  }
+  if (PASSWORD_REQUIREMENTS.requireUppercase && !/[A-Z]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one uppercase letter' }
+  }
+  if (PASSWORD_REQUIREMENTS.requireLowercase && !/[a-z]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one lowercase letter' }
+  }
+  if (PASSWORD_REQUIREMENTS.requireNumber && !/\d/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one number' }
+  }
+  return { valid: true, message: '' }
+}
+
+function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -25,43 +62,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null)
-  const fetchInProgressRef = React.useRef(false)
-  const initialLoadComplete = React.useRef(false)
-  // OPTIMIZATION: Request deduplication cache
-  const profileCacheRef = React.useRef<Map<string, Promise<any>>>(new Map())
 
-  // Log role changes for debugging
-  React.useEffect(() => {
-    if (userRole !== null) {
+  // Rate limiting state
+  const failedAttemptsRef = useRef<number>(0)
+  const lastAttemptTimeRef = useRef<number>(0)
+  const rateLimitUntilRef = useRef<number>(0)
+
+  // Prevent concurrent profile fetches
+  const fetchInProgressRef = useRef(false)
+  const initialLoadComplete = useRef(false)
+
+  // Profile cache with request deduplication
+  const profileCacheRef = useRef<Map<string, Promise<any>>>(new Map())
+
+  // Calculate rate limit delay with exponential backoff
+  const getRateLimitDelay = useCallback((): number => {
+    if (failedAttemptsRef.current === 0) return 0
+    const delay = Math.min(
+      RATE_LIMIT_CONFIG.baseDelay * Math.pow(2, failedAttemptsRef.current - 1),
+      RATE_LIMIT_CONFIG.maxDelay
+    )
+    return delay
+  }, [])
+
+  // Check if rate limited
+  const isRateLimited = useCallback((): { limited: boolean; remainingMs: number } => {
+    const now = Date.now()
+    if (now < rateLimitUntilRef.current) {
+      return { limited: true, remainingMs: rateLimitUntilRef.current - now }
     }
-  }, [userRole])
+    return { limited: false, remainingMs: 0 }
+  }, [])
 
-  React.useEffect(() => {
-    if (workspaceId !== null) {
-    }
-  }, [workspaceId])
+  // Record failed attempt and update rate limit
+  const recordFailedAttempt = useCallback(() => {
+    failedAttemptsRef.current += 1
+    lastAttemptTimeRef.current = Date.now()
+    const delay = getRateLimitDelay()
+    rateLimitUntilRef.current = Date.now() + delay
+  }, [getRateLimitDelay])
 
-  // OPTIMIZATION: Fetch user profile with request deduplication and caching
-  const fetchUserProfile = async (userId: string, retryCount = 0): Promise<{ workspace_id: string; role: string } | null | undefined> => {
-    // Check if we already have a pending request for this user
+  // Reset rate limit on successful auth
+  const resetRateLimit = useCallback(() => {
+    failedAttemptsRef.current = 0
+    lastAttemptTimeRef.current = 0
+    rateLimitUntilRef.current = 0
+  }, [])
+
+  // Fetch user profile with proper error handling
+  const fetchUserProfile = async (userId: string, retryCount = 0): Promise<{ workspace_id: string; role: string } | null> => {
+    const maxRetries = 3
+
+    // Check cache first
     const cachedRequest = profileCacheRef.current.get(userId)
     if (cachedRequest) {
       return cachedRequest
     }
 
-    // Prevent concurrent profile fetches to avoid race conditions
+    // Prevent concurrent fetches
     if (fetchInProgressRef.current) {
-      return
+      return null
     }
 
     fetchInProgressRef.current = true
-    const maxRetries = 3
 
-    // Create a promise for this fetch and cache it
-    const fetchPromise: Promise<{ workspace_id: string; role: string } | null> = (async (): Promise<{ workspace_id: string; role: string } | null> => {
+    const fetchPromise: Promise<{ workspace_id: string; role: string } | null> = (async () => {
       try {
-
-        // Try RPC first to avoid users RLS recursion
+        // Try RPC first to avoid RLS recursion
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_my_profile')
         if (!rpcError && rpcData) {
           const d: any = Array.isArray(rpcData) ? rpcData[0] : rpcData
@@ -69,12 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setWorkspaceId(d.workspace_id as string)
             setUserRole(d.role as 'admin' | 'editor' | 'viewer')
             return { workspace_id: d.workspace_id, role: d.role }
-          } else {
           }
-        } else if (rpcError) {
         }
 
-        // Fallback: direct select (requires non-recursive users RLS policy)
+        // Fallback: direct select
         const { data, error } = await supabase
           .from('users')
           .select('workspace_id, role')
@@ -86,15 +151,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!data) {
-          
-          // Retry if we haven't exceeded max retries
+          // Retry with exponential backoff
           if (retryCount < maxRetries) {
             fetchInProgressRef.current = false
-            profileCacheRef.current.delete(userId) // Clear cache before retry
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            return (await fetchUserProfile(userId, retryCount + 1)) ?? null
+            profileCacheRef.current.delete(userId)
+            const backoffMs = Math.pow(2, retryCount) * 1000
+            await new Promise(resolve => setTimeout(resolve, backoffMs))
+            return await fetchUserProfile(userId, retryCount + 1)
           }
-          
+
           setWorkspaceId(null)
           setUserRole(null)
           return null
@@ -104,15 +169,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const role = (data as any).role as 'admin' | 'editor' | 'viewer'
 
         if (!workspace || !role) {
-          
-          // Retry if we haven't exceeded max retries
           if (retryCount < maxRetries) {
             fetchInProgressRef.current = false
-            profileCacheRef.current.delete(userId) // Clear cache before retry
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            return (await fetchUserProfile(userId, retryCount + 1)) ?? null
+            profileCacheRef.current.delete(userId)
+            const backoffMs = Math.pow(2, retryCount) * 1000
+            await new Promise(resolve => setTimeout(resolve, backoffMs))
+            return await fetchUserProfile(userId, retryCount + 1)
           }
-          
+
           setWorkspaceId(null)
           setUserRole(null)
           return null
@@ -122,37 +186,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserRole(role)
         return { workspace_id: workspace, role }
       } catch (error) {
-        const e = error as any
-        
-        // Retry if we haven't exceeded max retries
         if (retryCount < maxRetries) {
           fetchInProgressRef.current = false
-          profileCacheRef.current.delete(userId) // Clear cache before retry
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          return (await fetchUserProfile(userId, retryCount + 1)) ?? null
+          profileCacheRef.current.delete(userId)
+          const backoffMs = Math.pow(2, retryCount) * 1000
+          await new Promise(resolve => setTimeout(resolve, backoffMs))
+          return await fetchUserProfile(userId, retryCount + 1)
         }
-        
+
         setWorkspaceId(null)
         setUserRole(null)
         return null
       } finally {
         fetchInProgressRef.current = false
-        // OPTIMIZATION: Clear cache after 5 minutes to allow fresh fetches
+        // Clear cache after 5 minutes
         setTimeout(() => profileCacheRef.current.delete(userId), 5 * 60 * 1000)
       }
     })()
 
-    // Cache the promise
     profileCacheRef.current.set(userId, fetchPromise)
     return fetchPromise
   }
-// Initialize session
+
+  // Initialize session
   useEffect(() => {
     let mounted = true
 
     const initializeAuth = async () => {
       try {
-        // Get initial session
         const { data: { session: initialSession }, error } = await supabase.auth.getSession()
 
         if (mounted) {
@@ -166,9 +227,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (initialSession?.user) {
             await fetchUserProfile(initialSession.user.id)
-          } else {
           }
-          // Mark initial load as complete AFTER profile fetch
+
           initialLoadComplete.current = true
           setLoading(false)
         }
@@ -181,17 +241,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
 
-    // Listen for auth changes (ONLY for sign-in/sign-out events, not initial load)
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-
-      // Skip if initial load hasn't completed yet (prevents duplicate processing)
-      if (!initialLoadComplete.current) {
+      if (!initialLoadComplete.current || !mounted) {
         return
       }
 
-      if (!mounted) return
-
-      // Only process actual sign-in/sign-out events, not passive session refreshes
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         setSession(currentSession)
         setUser(currentSession?.user ?? null)
@@ -215,39 +270,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Sign up new user
   const signUp = async (email: string, password: string, fullName: string) => {
+    // Validate email
+    if (!validateEmail(email)) {
+      return { error: new Error('Please enter a valid email address') }
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
+      return { error: new Error(passwordValidation.message) }
+    }
+
+    // Validate name
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      return { error: new Error('Please enter your full name') }
+    }
+
+    // Check rate limit
+    const rateLimit = isRateLimited()
+    if (rateLimit.limited) {
+      const seconds = Math.ceil(rateLimit.remainingMs / 1000)
+      return { error: new Error(`Too many attempts. Please wait ${seconds} seconds.`) }
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.toLowerCase().trim(),
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
           },
         },
       })
 
-      if (error) throw error
+      if (error) {
+        recordFailedAttempt()
+        return { error: new Error(error.message) }
+      }
 
-      // The trigger function will automatically create workspace and user profile
+      resetRateLimit()
       return { error: null }
     } catch (error) {
-      return { error: error as Error }
+      recordFailedAttempt()
+      return { error: new Error('Failed to create account. Please try again.') }
     }
   }
 
   // Sign in existing user
   const signIn = async (email: string, password: string) => {
+    // Validate email
+    if (!validateEmail(email)) {
+      return { error: new Error('Please enter a valid email address') }
+    }
+
+    // Check rate limit
+    const rateLimit = isRateLimited()
+    if (rateLimit.limited) {
+      const seconds = Math.ceil(rateLimit.remainingMs / 1000)
+      return { error: new Error(`Too many attempts. Please wait ${seconds} seconds.`) }
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.toLowerCase().trim(),
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        recordFailedAttempt()
+        // Return user-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          return { error: new Error('Invalid email or password') }
+        }
+        return { error: new Error('Sign in failed. Please try again.') }
+      }
 
+      resetRateLimit()
       return { error: null }
     } catch (error) {
-      return { error: error as Error }
+      recordFailedAttempt()
+      return { error: new Error('Sign in failed. Please try again.') }
     }
   }
 
@@ -257,7 +360,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut()
       setWorkspaceId(null)
       setUserRole(null)
+      resetRateLimit()
     } catch (error) {
+      // Silent fail - user is logging out anyway
     }
   }
 
@@ -272,6 +377,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await fetchUserProfile(refreshedSession.user.id)
       }
     } catch (error) {
+      // Silent fail on refresh
+    }
+  }
+
+  // Reset password
+  const resetPassword = async (email: string) => {
+    if (!validateEmail(email)) {
+      return { error: new Error('Please enter a valid email address') }
+    }
+
+    // Check rate limit
+    const rateLimit = isRateLimited()
+    if (rateLimit.limited) {
+      const seconds = Math.ceil(rateLimit.remainingMs / 1000)
+      return { error: new Error(`Too many attempts. Please wait ${seconds} seconds.`) }
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: `${window.location.origin}/login?reset=true`,
+      })
+
+      if (error) {
+        recordFailedAttempt()
+        return { error: new Error('Failed to send reset email. Please try again.') }
+      }
+
+      return { error: null }
+    } catch (error) {
+      recordFailedAttempt()
+      return { error: new Error('Failed to send reset email. Please try again.') }
     }
   }
 
@@ -285,6 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signOut,
     refreshSession,
+    resetPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -297,4 +434,3 @@ export function useAuth() {
   }
   return context
 }
-

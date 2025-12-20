@@ -7,90 +7,114 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import settings
 from .services import LLMFactory
+from .middleware.auth import AuthMiddleware
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG if settings.DEBUG else logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses"""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        if settings.is_production:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan manager
-    Handles startup and shutdown events for resource management
-    """
-    # Startup
-    logger.info("🚀 Starting Content Creator Backend...")
-    logger.info(f"Environment: {'DEBUG' if settings.DEBUG else 'PRODUCTION'}")
+    """Application lifespan manager"""
+    logger.info("Starting Content Creator Backend...")
+    logger.info(f"Environment: {'PRODUCTION' if settings.is_production else 'DEVELOPMENT'}")
     logger.info(f"Port: {settings.PORT}")
+    
+    # Validate production configuration
+    validation_errors = settings.validate_production_config()
+    for error in validation_errors:
+        logger.warning(f"Config warning: {error}")
     
     # Initialize LLM Factory
     try:
         app.state.llm_factory = LLMFactory()
         await app.state.llm_factory.initialize()
-        logger.info("✅ LLM Factory initialized successfully")
+        logger.info("LLM Factory initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize LLM Factory: {e}")
+        logger.error(f"Failed to initialize LLM Factory: {e}")
         raise
     
-    # Verify API keys
-    providers_configured = []
+    # Log configured providers
+    providers = []
     if settings.OPENAI_API_KEY:
-        providers_configured.append("OpenAI")
+        providers.append("OpenAI")
     if settings.ANTHROPIC_API_KEY:
-        providers_configured.append("Anthropic")
+        providers.append("Anthropic")
     if settings.gemini_key:
-        providers_configured.append("Google Gemini")
+        providers.append("Google Gemini")
     if settings.GROQ_API_KEY:
-        providers_configured.append("Groq")
+        providers.append("Groq")
     
-    if providers_configured:
-        logger.info(f"✅ Configured providers: {', '.join(providers_configured)}")
+    if providers:
+        logger.info(f"Configured providers: {', '.join(providers)}")
     else:
-        logger.warning("⚠️  No AI provider API keys configured")
+        logger.warning("No AI provider API keys configured")
     
-    logger.info("✅ Application startup complete")
+    logger.info("Application startup complete")
     
     yield
     
     # Shutdown
-    logger.info("👋 Shutting down Content Creator Backend...")
+    logger.info("Shutting down Content Creator Backend...")
     try:
         await app.state.llm_factory.close()
-        logger.info("✅ LLM Factory closed successfully")
+        logger.info("LLM Factory closed")
     except Exception as e:
-        logger.error(f"❌ Error during shutdown: {e}")
+        logger.error(f"Error during shutdown: {e}")
     
-    logger.info("✅ Application shutdown complete")
+    logger.info("Application shutdown complete")
 
 
 app = FastAPI(
     title="Content Creator AI Backend",
     description="Production-ready Python AI agent backend using LangGraph and FastAPI",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-# CORS middleware for Next.js frontend
+# Security headers middleware (first - runs last)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.APP_URL,
-        "http://localhost:3000",
-        "http://localhost:3001",
-    ],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+
+# Authentication middleware
+app.add_middleware(AuthMiddleware)
 
 # Include API routers
 from .api import (
@@ -133,17 +157,19 @@ app.include_router(tiktok_router)
 app.include_router(youtube_router)
 
 
-# Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler for unhandled errors"""
+    """Global exception handler - sanitizes errors in production"""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    
+    # Don't expose internal errors in production
+    error_message = str(exc) if settings.DEBUG else "An unexpected error occurred"
+    
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal server error",
-            "message": str(exc) if settings.DEBUG else "An unexpected error occurred",
-            "type": type(exc).__name__,
+            "message": error_message,
         }
     )
 
@@ -155,8 +181,7 @@ async def root():
         content={
             "service": "Content Creator AI Backend",
             "status": "running",
-            "version": "0.1.0",
-            "docs": "/docs",
+            "version": "1.0.0",
             "health": "/health",
         }
     )
@@ -164,32 +189,27 @@ async def root():
 
 @app.get("/health")
 async def health_check(request: Request):
-    """
-    Health check endpoint
-    Verifies service health and LLM factory status
-    """
-    llm_factory_status = "healthy"
+    """Health check endpoint"""
+    llm_status = "healthy"
     try:
         if not hasattr(request.app.state, "llm_factory"):
-            llm_factory_status = "not_initialized"
+            llm_status = "not_initialized"
     except Exception as e:
-        llm_factory_status = f"error: {str(e)}"
+        llm_status = f"error: {str(e)}"
     
     return JSONResponse(
         content={
             "status": "healthy",
             "service": "content-creator-backend",
-            "llm_factory": llm_factory_status,
-            "environment": "debug" if settings.DEBUG else "production",
+            "llm_factory": llm_status,
+            "environment": "production" if settings.is_production else "development",
         }
     )
 
 
 @app.get("/api/v1/providers")
 async def list_providers():
-    """
-    List available AI providers and their configuration status
-    """
+    """List available AI providers and their configuration status"""
     from .services import MODEL_ALLOWLIST
     
     providers_status = {
@@ -227,5 +247,5 @@ if __name__ == "__main__":
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
-        log_level="info" if settings.DEBUG else "warning",
+        log_level="debug" if settings.DEBUG else "info",
     )

@@ -1,11 +1,14 @@
 """
 Configuration Settings
-Using Pydantic Settings v2.6+ for environment variable management
+Production-ready environment variable management with validation
 """
 import re
-from typing import Optional
-from pydantic import Field, field_validator
+import logging
+from typing import Optional, List
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -15,6 +18,7 @@ class Settings(BaseSettings):
     HOST: str = Field(default="0.0.0.0", description="Server host")
     PORT: int = Field(default=8000, description="Server port")
     DEBUG: bool = Field(default=False, description="Debug mode")
+    ENVIRONMENT: str = Field(default="development", description="Environment: development, staging, production")
     
     # AI Provider API Keys
     GOOGLE_API_KEY: Optional[str] = Field(default=None, description="Google/Gemini API key")
@@ -30,24 +34,22 @@ class Settings(BaseSettings):
     SUPABASE_KEY: Optional[str] = Field(default=None, description="Supabase anon key")
     SUPABASE_SERVICE_KEY: Optional[str] = Field(default=None, description="Supabase service role key")
     
-    # Database Configuration (for LangGraph checkpointer)
-    DATABASE_URL: Optional[str] = Field(
-        default=None,
-        description="PostgreSQL connection string for LangGraph checkpointer"
-    )
+    # Database Configuration
+    DATABASE_URL: Optional[str] = Field(default=None, description="PostgreSQL connection string")
     
     # App Configuration
     APP_URL: str = Field(default="http://localhost:3000", description="Frontend app URL")
     
+    # CORS Configuration
+    CORS_ORIGINS: str = Field(
+        default="http://localhost:3000",
+        description="Comma-separated list of allowed origins"
+    )
+    
     @field_validator('APP_URL', mode='before')
     @classmethod
     def normalize_app_url(cls, v: str) -> str:
-        """
-        Transform Render's internal URL format to external HTTPS URL.
-        Examples:
-            - 'content-creator-frontend-xlki' -> 'https://content-creator-frontend-xlki.onrender.com'
-            - 'http://localhost:3000' -> 'http://localhost:3000' (unchanged)
-        """
+        """Transform Render's internal URL format to external HTTPS URL"""
         if not v:
             return "http://localhost:3000"
         
@@ -55,22 +57,26 @@ class Settings(BaseSettings):
         
         # Handle Render's internal format (no protocol, no dots)
         if '://' not in url and 'localhost' not in url and '127.0.0.1' not in url:
-            # Remove port if present (e.g., ":8000")
             url = re.sub(r':\d+$', '', url)
-            # Add .onrender.com if not already a full domain
             if '.' not in url:
                 url = f"{url}.onrender.com"
-            # Add https:// for production
             url = f"https://{url}"
         elif not url.startswith('http://') and not url.startswith('https://'):
-            # URL without protocol
             if 'localhost' in url or '127.0.0.1' in url:
                 url = f"http://{url}"
             else:
                 url = f"https://{url}"
         
-        # Remove trailing slash
         return url.rstrip('/')
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Get CORS origins as a list"""
+        origins = [o.strip() for o in self.CORS_ORIGINS.split(',') if o.strip()]
+        # Always include APP_URL
+        if self.APP_URL not in origins:
+            origins.append(self.APP_URL)
+        return origins
     
     # Social Platform OAuth Credentials
     FACEBOOK_CLIENT_ID: Optional[str] = Field(default=None, description="Facebook App ID")
@@ -86,18 +92,21 @@ class Settings(BaseSettings):
     YOUTUBE_CLIENT_ID: Optional[str] = Field(default=None, description="YouTube/Google Client ID")
     YOUTUBE_CLIENT_SECRET: Optional[str] = Field(default=None, description="YouTube/Google Client Secret")
     
-    # Twitter API Keys (alternative naming for OAuth 1.0a)
+    # Twitter API Keys (OAuth 1.0a)
     TWITTER_API_KEY: Optional[str] = Field(default=None, description="Twitter API Key (OAuth 1.0a)")
     TWITTER_API_SECRET: Optional[str] = Field(default=None, description="Twitter API Secret (OAuth 1.0a)")
     
     # Canva Integration
     CANVA_CLIENT_ID: Optional[str] = Field(default=None, description="Canva Client ID")
     CANVA_CLIENT_SECRET: Optional[str] = Field(default=None, description="Canva Client Secret")
-
     
-    # Model Configuration Defaults
+    # Rate Limiting
+    RATE_LIMIT_REQUESTS: int = Field(default=100, description="Max requests per minute")
+    RATE_LIMIT_AUTH_ATTEMPTS: int = Field(default=5, description="Max auth attempts per 15 min")
+    
+    # Model Configuration
     DEFAULT_MODEL_ID: str = Field(
-        default="google-genai:gemini-3-flash-preview",
+        default="google-genai:gemini-2.0-flash",
         description="Default LLM model ID"
     )
     
@@ -105,13 +114,18 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore",  # Ignore extra fields in .env
+        extra="ignore",
     )
     
     @property
     def gemini_key(self) -> Optional[str]:
         """Get Gemini API key (supports both GOOGLE_API_KEY and GEMINI_API_KEY)"""
         return self.GOOGLE_API_KEY or self.GEMINI_API_KEY
+    
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production"""
+        return self.ENVIRONMENT == "production" or not self.DEBUG
     
     def get_api_key(self, provider: str) -> Optional[str]:
         """Get API key for a specific provider"""
@@ -125,7 +139,45 @@ class Settings(BaseSettings):
             "elevenlabs": self.ELEVENLABS_API_KEY,
         }
         return key_map.get(provider.lower())
+    
+    def validate_production_config(self) -> List[str]:
+        """Validate required configuration for production"""
+        errors = []
+        
+        if self.is_production:
+            if not self.SUPABASE_URL:
+                errors.append("SUPABASE_URL is required in production")
+            if not self.SUPABASE_KEY:
+                errors.append("SUPABASE_KEY is required in production")
+            if not self.SUPABASE_SERVICE_KEY:
+                errors.append("SUPABASE_SERVICE_KEY is required in production")
+            if self.SUPABASE_KEY and self.SUPABASE_SERVICE_KEY:
+                if self.SUPABASE_KEY == self.SUPABASE_SERVICE_KEY:
+                    errors.append("SUPABASE_KEY and SUPABASE_SERVICE_KEY must be different")
+        
+        return errors
+    
+    def get_oauth_credentials(self, platform: str) -> tuple[Optional[str], Optional[str]]:
+        """Get OAuth client ID and secret for a platform"""
+        platform = platform.lower()
+        credentials = {
+            "facebook": (self.FACEBOOK_CLIENT_ID, self.FACEBOOK_CLIENT_SECRET),
+            "instagram": (self.INSTAGRAM_CLIENT_ID or self.FACEBOOK_CLIENT_ID, 
+                         self.INSTAGRAM_CLIENT_SECRET or self.FACEBOOK_CLIENT_SECRET),
+            "linkedin": (self.LINKEDIN_CLIENT_ID, self.LINKEDIN_CLIENT_SECRET),
+            "twitter": (self.TWITTER_CLIENT_ID, self.TWITTER_CLIENT_SECRET),
+            "tiktok": (self.TIKTOK_CLIENT_ID, self.TIKTOK_CLIENT_SECRET),
+            "youtube": (self.YOUTUBE_CLIENT_ID, self.YOUTUBE_CLIENT_SECRET),
+            "canva": (self.CANVA_CLIENT_ID, self.CANVA_CLIENT_SECRET),
+        }
+        return credentials.get(platform, (None, None))
 
 
 # Global settings instance
 settings = Settings()
+
+# Validate on startup
+_validation_errors = settings.validate_production_config()
+if _validation_errors:
+    for error in _validation_errors:
+        logger.warning(f"Configuration warning: {error}")

@@ -1,6 +1,6 @@
 """
 Supabase Service
-Production implementation for Supabase storage and database
+Production-ready implementation for Supabase storage, database, and authentication
 """
 import logging
 import base64
@@ -8,7 +8,7 @@ import uuid
 import mimetypes
 import re
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
@@ -17,13 +17,13 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-# Lazy client initialization
+# Client instances
 _supabase_client: Optional[Client] = None
 _supabase_admin_client: Optional[Client] = None
 
 
 def get_supabase_client() -> Client:
-    """Get or create Supabase client (Anon)"""
+    """Get or create Supabase client (Anon key)"""
     global _supabase_client
     
     if _supabase_client is None:
@@ -52,7 +52,7 @@ def get_supabase_admin_client() -> Client:
     
     if _supabase_admin_client is None:
         url = settings.SUPABASE_URL
-        key = settings.SUPABASE_SERVICE_KEY or settings.SUPABASE_KEY
+        key = settings.SUPABASE_SERVICE_KEY
         
         if not url or not key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be configured")
@@ -88,7 +88,7 @@ async def upload_file(
 ) -> Dict[str, Any]:
     """Upload file to Supabase Storage"""
     try:
-        client = get_supabase_admin_client() # Use admin for backend uploads
+        client = get_supabase_admin_client()
         
         if not file_name:
             ext = mimetypes.guess_extension(content_type or "application/octet-stream") or ""
@@ -123,12 +123,8 @@ async def upload_base64_file(
     bucket: str = "media",
     folder: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Upload base64 data to Supabase Storage
-    Matches Next.js uploadBase64Image behavior
-    """
+    """Upload base64 data to Supabase Storage"""
     try:
-        # Match data:mime;base64,content
         match = re.match(r'^data:(.+);base64,(.+)$', base64_data)
         if not match:
             return {"success": False, "error": "Invalid base64 format"}
@@ -138,13 +134,11 @@ async def upload_base64_file(
         
         file_data = base64.b64decode(base64_content)
         
-        # Clean file name and add extension if missing
         extension = mimetypes.guess_extension(mime_type) or ""
         if not file_name.endswith(extension):
             file_name = f"{file_name}{extension}"
         
-        # Add timestamp to name like Next.js
-        timestamp = int(datetime.now().timestamp() * 1000)
+        timestamp = int(datetime.now(timezone.utc).timestamp() * 1000)
         final_name = f"{timestamp}-{file_name}"
         
         return await upload_file(
@@ -186,7 +180,7 @@ async def delete_file(bucket: str, paths: List[str]) -> Dict[str, Any]:
 
 
 # ============================================================================
-# Database Operations (using Admin Client to bypass RLS)
+# Database Operations
 # ============================================================================
 
 async def db_select(
@@ -239,6 +233,17 @@ async def db_update(table: str, data: Dict[str, Any], filters: Dict[str, Any]) -
         return {"success": False, "error": str(e)}
 
 
+async def db_upsert(table: str, data: Dict[str, Any], on_conflict: str = "id") -> Dict[str, Any]:
+    """Upsert data in Supabase table"""
+    try:
+        client = get_supabase_admin_client()
+        result = client.table(table).upsert(data, on_conflict=on_conflict).execute()
+        return {"success": True, "data": result.data}
+    except Exception as e:
+        logger.error(f"Upsert error: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def db_delete(table: str, filters: Dict[str, Any]) -> Dict[str, Any]:
     """Delete data from Supabase table"""
     try:
@@ -254,7 +259,7 @@ async def db_delete(table: str, filters: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ============================================================================
-# Core Domain Helpers (Aligned with Next.js Schema)
+# Domain Helpers
 # ============================================================================
 
 async def log_activity(
@@ -268,7 +273,7 @@ async def log_activity(
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Log activity to activity_logs table matching Next.js behavior"""
+    """Log activity to activity_logs table"""
     data = {
         "workspace_id": workspace_id,
         "action": action,
@@ -279,7 +284,7 @@ async def log_activity(
         "new_values": new_values,
         "ip_address": ip_address,
         "user_agent": user_agent,
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
     return await db_insert("activity_logs", data)
 
@@ -288,14 +293,14 @@ async def register_media_asset(
     workspace_id: str,
     name: str,
     file_url: str,
-    type: str, # 'image' | 'video'
+    type: str,
     source: str = "ai-generated",
     file_size: Optional[int] = None,
     created_by: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[List[str]] = None
 ) -> Dict[str, Any]:
-    """Register a new media asset in the media_assets table"""
+    """Register a new media asset"""
     data = {
         "workspace_id": workspace_id,
         "name": name,
@@ -306,8 +311,8 @@ async def register_media_asset(
         "file_size": file_size,
         "tags": tags or [],
         "created_by": created_by,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
     }
     return await db_insert("media_assets", data)
 
@@ -317,48 +322,53 @@ async def register_media_asset(
 # ============================================================================
 
 async def verify_jwt(token: str) -> Dict[str, Any]:
-    """
-    Verify JWT token and fetch user profile (workspace_id, role)
-    Matches Next.js createRequestContext behavior
-    """
+    """Verify JWT token and fetch user profile"""
     try:
         client = get_supabase_client()
         user_resp = client.auth.get_user(token)
         
-        if user_resp and user_resp.user:
-            user_id = user_resp.user.id
-            
-            # Fetch profile from users table using admin client to bypass RLS
-            admin = get_supabase_admin_client()
-            profile_resp = admin.table("users").select("workspace_id, role, is_active").eq("id", user_id).single().execute()
-            
-            if profile_resp.data:
-                profile = profile_resp.data
-                return {
-                    "success": True,
-                    "user": {
-                        "id": user_id,
-                        "email": user_resp.user.email,
-                        "workspaceId": profile.get("workspace_id"),
-                        "role": profile.get("role", "viewer"),
-                        "isActive": profile.get("is_active", True)
-                    }
-                }
-            
-            # Fallback for users without profile record
+        if not user_resp or not user_resp.user:
+            return {"success": False, "error": "Invalid token"}
+        
+        user_id = user_resp.user.id
+        
+        # Check token expiry
+        if hasattr(user_resp, 'session') and user_resp.session:
+            expires_at = user_resp.session.expires_at
+            if expires_at and datetime.fromtimestamp(expires_at, tz=timezone.utc) < datetime.now(timezone.utc):
+                return {"success": False, "error": "Token expired"}
+        
+        # Fetch profile using admin client to bypass RLS
+        admin = get_supabase_admin_client()
+        profile_resp = admin.table("users").select(
+            "workspace_id, role, is_active"
+        ).eq("id", user_id).single().execute()
+        
+        if profile_resp.data:
+            profile = profile_resp.data
             return {
                 "success": True,
                 "user": {
                     "id": user_id,
                     "email": user_resp.user.email,
-                    "workspaceId": None,
-                    "role": "viewer",
-                    "isActive": True
+                    "workspaceId": profile.get("workspace_id"),
+                    "role": profile.get("role", "viewer"),
+                    "isActive": profile.get("is_active", True)
                 }
             }
         
-        return {"success": False, "error": "Invalid token"}
-        
+        # Fallback for users without profile
+        return {
+            "success": True,
+            "user": {
+                "id": user_id,
+                "email": user_resp.user.email,
+                "workspaceId": None,
+                "role": "viewer",
+                "isActive": True
+            }
+        }
+    
     except Exception as e:
         logger.error(f"JWT verification error: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Authentication failed"}

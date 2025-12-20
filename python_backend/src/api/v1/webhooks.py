@@ -8,13 +8,13 @@ import hashlib
 import json
 import logging
 from typing import Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from src.config import settings
-
+from src.services import db_insert
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["Webhooks"])
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # ================== CONFIG ==================
 
-META_APP_SECRET = getattr(settings, "META_APP_SECRET", None) or getattr(settings, "FACEBOOK_APP_SECRET", None)
+META_APP_SECRET = getattr(settings, "FACEBOOK_CLIENT_SECRET", None)
 META_WEBHOOK_VERIFY_TOKEN = getattr(settings, "META_WEBHOOK_VERIFY_TOKEN", "meta_ads_webhook_token")
 
 
@@ -38,7 +38,7 @@ class WebhookEvent(BaseModel):
     field: str
     value: Any
     message: str
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # ================== HELPER FUNCTIONS ==================
@@ -55,7 +55,6 @@ def verify_webhook_signature(payload: str, signature: str) -> bool:
         True if signature is valid, False otherwise
     """
     if not META_APP_SECRET:
-        # Allow in development when secret is not configured
         logger.warning("META_APP_SECRET not configured, skipping signature verification")
         return True
     
@@ -66,7 +65,6 @@ def verify_webhook_signature(payload: str, signature: str) -> bool:
             hashlib.sha256
         ).hexdigest()
         
-        # Use compare_digest for timing-safe comparison
         return hmac.compare_digest(signature, expected_signature)
     except Exception as e:
         logger.error(f"Signature verification error: {e}")
@@ -75,28 +73,28 @@ def verify_webhook_signature(payload: str, signature: str) -> bool:
 
 async def log_webhook_event(event: WebhookEvent) -> None:
     """
-    Log webhook event to database/logging system.
-    
-    In production, this should store events in a webhook_events table.
-    Currently logs to application logger.
+    Log webhook event to database.
+    Falls back to application logger if database insert fails.
     """
     try:
-        # Log the event
+        # Log to application logger
         logger.info(f"Webhook Event: {event.type} - {event.message}")
         
-        # TODO: Store in database when webhook_events table is created
-        # supabase = get_supabase_client()
-        # await supabase.table("webhook_events").insert({
-        #     "type": event.type,
-        #     "account_id": event.account_id,
-        #     "campaign_id": event.campaign_id,
-        #     "adset_id": event.adset_id,
-        #     "ad_id": event.ad_id,
-        #     "field": event.field,
-        #     "value": json.dumps(event.value),
-        #     "message": event.message,
-        #     "created_at": event.timestamp,
-        # }).execute()
+        # Store in database
+        result = await db_insert("webhook_events", {
+            "type": event.type,
+            "account_id": event.account_id,
+            "campaign_id": event.campaign_id,
+            "adset_id": event.adset_id,
+            "ad_id": event.ad_id,
+            "field": event.field,
+            "value": json.dumps(event.value) if event.value else None,
+            "message": event.message,
+            "created_at": event.timestamp,
+        })
+        
+        if not result.get("success"):
+            logger.warning(f"Failed to store webhook event in database: {result.get('error')}")
         
     except Exception as e:
         logger.error(f"Failed to log webhook event: {e}")
@@ -105,13 +103,35 @@ async def log_webhook_event(event: WebhookEvent) -> None:
 async def notify_campaign_status_change(campaign_id: str, status: str) -> None:
     """Notify users of campaign status changes (PAUSED, ARCHIVED, etc.)"""
     logger.info(f"Campaign {campaign_id} status changed to {status}")
-    # TODO: Implement notification system (email, in-app, Slack/Discord)
+    
+    # Log notification to activity log
+    try:
+        await db_insert("activity_logs", {
+            "action": "campaign_status_change",
+            "resource_type": "campaign",
+            "resource_id": campaign_id,
+            "new_values": {"status": status},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        logger.error(f"Failed to log campaign status change: {e}")
 
 
 async def notify_ad_disapproval(ad_id: str) -> None:
     """Notify users of ad disapproval"""
     logger.warning(f"Ad {ad_id} was disapproved")
-    # TODO: Implement notification system
+    
+    # Log notification to activity log
+    try:
+        await db_insert("activity_logs", {
+            "action": "ad_disapproved",
+            "resource_type": "ad",
+            "resource_id": ad_id,
+            "new_values": {"status": "DISAPPROVED"},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        logger.error(f"Failed to log ad disapproval: {e}")
 
 
 # ================== EVENT HANDLERS ==================
@@ -160,7 +180,6 @@ async def handle_campaign_change(campaign_id: str, change: dict) -> None:
             value=value,
             message=f"Campaign {campaign_id} status changed to {value}"
         ))
-        # Notify if paused/archived
         if value in ["PAUSED", "ARCHIVED"]:
             await notify_campaign_status_change(campaign_id, value)
             
@@ -242,7 +261,6 @@ async def handle_ad_change(ad_id: str, change: dict) -> None:
             value=value,
             message=f"Ad {ad_id} status changed to {value}"
         ))
-        # Notify if disapproved
         if value == "DISAPPROVED":
             await notify_ad_disapproval(ad_id)
             
@@ -267,11 +285,8 @@ async def handle_ad_change(ad_id: str, change: dict) -> None:
 # ================== META ADS WEBHOOKS ==================
 
 @router.get("/meta-ads")
-async def verify_meta_ads_webhook(
-    request: Request
-):
+async def verify_meta_ads_webhook(request: Request):
     """
-    GET /api/v1/webhooks/meta-ads
     Webhook verification endpoint (required by Meta for subscription setup).
     
     Meta sends verification request with:
@@ -283,19 +298,17 @@ async def verify_meta_ads_webhook(
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
     
-    # Verify token matches expected value
     if mode == "subscribe" and token == META_WEBHOOK_VERIFY_TOKEN:
         logger.info("Meta webhook verification successful")
         return Response(content=challenge, media_type="text/plain")
     
-    logger.warning(f"Meta webhook verification failed: mode={mode}, token_match={token == META_WEBHOOK_VERIFY_TOKEN}")
+    logger.warning(f"Meta webhook verification failed: mode={mode}")
     raise HTTPException(status_code=403, detail="Forbidden")
 
 
 @router.post("/meta-ads")
 async def handle_meta_ads_webhook(request: Request):
     """
-    POST /api/v1/webhooks/meta-ads
     Handle webhook events from Meta Marketing API.
     
     Processes real-time notifications for:
@@ -308,24 +321,19 @@ async def handle_meta_ads_webhook(request: Request):
     Always returns 200 to acknowledge receipt (prevents Meta from retrying).
     """
     try:
-        # Get raw body for signature verification
         raw_body = await request.body()
         raw_body_str = raw_body.decode("utf-8")
         
-        # Get signature from header
         signature_header = request.headers.get("x-hub-signature-256", "")
         signature = signature_header.replace("sha256=", "")
         
-        # Verify signature
         if signature and not verify_webhook_signature(raw_body_str, signature):
             logger.error("Invalid webhook signature")
             raise HTTPException(status_code=401, detail="Invalid signature")
         
-        # Parse body
         body = json.loads(raw_body_str)
         object_type = body.get("object", "")
         
-        # Process events based on object type
         if object_type == "ad_account":
             for entry in body.get("entry", []):
                 for change in entry.get("changes", []):
@@ -348,14 +356,12 @@ async def handle_meta_ads_webhook(request: Request):
         else:
             logger.info(f"Received webhook for unknown object type: {object_type}")
         
-        # Always return 200 to acknowledge receipt
         return {"success": True}
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Webhook processing error: {e}")
-        # Still return 200 to prevent Meta from retrying
         return {"success": False, "error": "Processing failed"}
 
 

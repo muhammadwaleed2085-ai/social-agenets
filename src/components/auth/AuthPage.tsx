@@ -2,22 +2,66 @@
 
 import React, { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { Loader2, Sparkles, Calendar, CheckCircle2, ArrowRight, Shield, BarChart3, Rocket } from 'lucide-react'
+import { Loader2, Rocket, Eye, EyeOff, Check, X, Mail } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 interface AuthPageProps {
   inviteToken?: string | null
 }
 
+// Password strength indicator
+function PasswordStrength({ password }: { password: string }) {
+  const checks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+  }
+
+  const strength = Object.values(checks).filter(Boolean).length
+  const strengthColors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500']
+  const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong']
+
+  if (password.length === 0) return null
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex gap-1">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded ${i < strength ? strengthColors[strength - 1] : 'bg-slate-600'}`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className={checks.length ? 'text-green-400' : 'text-gray-500'}>
+          {checks.length ? <Check className="inline w-3 h-3" /> : <X className="inline w-3 h-3" />} 8+ chars
+        </span>
+        <span className={checks.uppercase ? 'text-green-400' : 'text-gray-500'}>
+          {checks.uppercase ? <Check className="inline w-3 h-3" /> : <X className="inline w-3 h-3" />} Uppercase
+        </span>
+        <span className={checks.lowercase ? 'text-green-400' : 'text-gray-500'}>
+          {checks.lowercase ? <Check className="inline w-3 h-3" /> : <X className="inline w-3 h-3" />} Lowercase
+        </span>
+        <span className={checks.number ? 'text-green-400' : 'text-gray-500'}>
+          {checks.number ? <Check className="inline w-3 h-3" /> : <X className="inline w-3 h-3" />} Number
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function AuthPage({ inviteToken }: AuthPageProps) {
-  // Show Sign Up first if coming from invite (new users)
-  const [isLogin, setIsLogin] = useState(!inviteToken)
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(!inviteToken ? 'login' : 'signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, resetPassword } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,14 +69,15 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
     setLoading(true)
 
     try {
-      if (isLogin) {
-        // Sign in
+      if (mode === 'login') {
         const { error } = await signIn(email, password)
         if (error) {
           setError(error.message)
+          toast.error(error.message)
+        } else {
+          toast.success('Welcome back!')
         }
-      } else {
-        // Sign up
+      } else if (mode === 'signup') {
         if (!fullName.trim()) {
           setError('Please enter your full name')
           setLoading(false)
@@ -42,19 +87,26 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
         const { error } = await signUp(email, password, fullName)
         if (error) {
           setError(error.message)
+          toast.error(error.message)
         } else {
-          // Success message - check if email confirmation is required
-          setError(null)
-          setIsLogin(true)
-          // Reset form
-          setEmail('')
+          toast.success('Account created! Please sign in.')
+          setMode('login')
           setPassword('')
           setFullName('')
-          alert('Account created successfully! Please sign in.')
+        }
+      } else if (mode === 'forgot') {
+        const { error } = await resetPassword(email)
+        if (error) {
+          setError(error.message)
+          toast.error(error.message)
+        } else {
+          toast.success('Password reset email sent!')
+          setMode('login')
         }
       }
     } catch (err) {
       setError('An unexpected error occurred')
+      toast.error('An unexpected error occurred')
     } finally {
       setLoading(false)
     }
@@ -76,7 +128,6 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative z-10">
         <div className="flex flex-col justify-center p-12 w-full">
-          {/* Logo - positioned at top */}
           <div className="absolute top-8 left-12 flex items-center gap-3">
             <div className="bg-white p-2 rounded-lg">
               <Rocket className="w-6 h-6 text-slate-900" />
@@ -84,9 +135,8 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
             <span className="text-2xl font-bold text-white tracking-tight">Content OS</span>
           </div>
 
-          {/* Main Title - positioned in center */}
           <div>
-            <div className="text-8xl  text-white leading-[1.1] tracking-tight">
+            <div className="text-8xl text-white leading-[1.1] tracking-tight">
               Multi Agents <br />
               Platform for <br />
               Visual Content Generation
@@ -104,16 +154,23 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
               <div className="bg-white p-2 rounded-lg">
                 <Rocket className="w-6 h-6 text-slate-900" />
               </div>
-              <span className="text-2xl font-bold text-white">Content Creator</span>
+              <span className="text-2xl font-bold text-white">Content OS</span>
             </div>
           </div>
 
-          {/* Auth Card - Dark Theme */}
-          <div className="bg-[#1c1e26] rounded-2xl shadow-2xl p-10 border border-slate-700/50 min-h-[580px] flex flex-col justify-center">
+          {/* Auth Card */}
+          <div className="bg-[#1c1e26] rounded-2xl shadow-2xl p-10 border border-slate-700/50 min-h-[520px] flex flex-col justify-center">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-white text-center">
-                {isLogin ? 'Log In' : 'Sign Up'}
+                {mode === 'login' && 'Log In'}
+                {mode === 'signup' && 'Sign Up'}
+                {mode === 'forgot' && 'Reset Password'}
               </h2>
+              {mode === 'forgot' && (
+                <p className="text-gray-400 text-center mt-2 text-sm">
+                  Enter your email and we'll send you a reset link
+                </p>
+              )}
             </div>
 
             {/* Error Message */}
@@ -125,7 +182,7 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              {!isLogin && (
+              {mode === 'signup' && (
                 <div>
                   <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
                     Full Name
@@ -137,8 +194,9 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Your full name"
                     className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-white placeholder-gray-500"
-                    required={!isLogin}
+                    required
                     disabled={loading}
+                    autoComplete="name"
                   />
                 </div>
               )}
@@ -147,34 +205,52 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
                 <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                   Email
                 </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Your email address"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-white placeholder-gray-500 text-base"
-                  required
-                  disabled={loading}
-                />
+                <div className="relative">
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-white placeholder-gray-500 text-base"
+                    required
+                    disabled={loading}
+                    autoComplete="email"
+                  />
+                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-white placeholder-gray-500 text-base"
-                  required
-                  minLength={6}
-                  disabled={loading}
-                />
-              </div>
+              {mode !== 'forgot' && (
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Your password"
+                      className="w-full px-4 py-3 pr-12 bg-slate-800/50 border border-slate-600/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-white placeholder-gray-500 text-base"
+                      required
+                      minLength={8}
+                      disabled={loading}
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {mode === 'signup' && <PasswordStrength password={password} />}
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -184,41 +260,61 @@ export default function AuthPage({ inviteToken }: AuthPageProps) {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    {isLogin ? 'Signing in...' : 'Creating account...'}
+                    {mode === 'login' && 'Signing in...'}
+                    {mode === 'signup' && 'Creating account...'}
+                    {mode === 'forgot' && 'Sending email...'}
                   </>
                 ) : (
-                  isLogin ? 'Continue' : 'Create Account'
+                  <>
+                    {mode === 'login' && 'Continue'}
+                    {mode === 'signup' && 'Create Account'}
+                    {mode === 'forgot' && 'Send Reset Link'}
+                  </>
                 )}
               </button>
             </form>
 
-
-            {/* Toggle Login/Signup */}
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin)
-                  setError(null)
-                }}
-                disabled={loading}
-                className="text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-              >
-                {isLogin
-                  ? "Don't have an account? Sign up"
-                  : 'Already have an account? Log in'}
-              </button>
+            {/* Mode Toggle */}
+            <div className="mt-6 text-center space-y-2">
+              {mode === 'login' && (
+                <>
+                  <button
+                    onClick={() => { setMode('signup'); setError(null) }}
+                    disabled={loading}
+                    className="text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+                  >
+                    Don't have an account? Sign up
+                  </button>
+                  <br />
+                  <button
+                    onClick={() => { setMode('forgot'); setError(null) }}
+                    disabled={loading}
+                    className="text-sm text-teal-500 hover:text-teal-400 transition-colors"
+                  >
+                    Forgot Password?
+                  </button>
+                </>
+              )}
+              {mode === 'signup' && (
+                <button
+                  onClick={() => { setMode('login'); setError(null) }}
+                  disabled={loading}
+                  className="text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+                >
+                  Already have an account? Log in
+                </button>
+              )}
+              {mode === 'forgot' && (
+                <button
+                  onClick={() => { setMode('login'); setError(null) }}
+                  disabled={loading}
+                  className="text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+                >
+                  Back to login
+                </button>
+              )}
             </div>
-
-            {isLogin && (
-              <div className="mt-4 text-center">
-                <a href="#" className="text-sm text-teal-500 hover:text-teal-400 transition-colors">
-                  Forgot Password?
-                </a>
-              </div>
-            )}
           </div>
-
-          {/* Footer - Removed legal links as per request */}
         </div>
       </div>
     </div>
