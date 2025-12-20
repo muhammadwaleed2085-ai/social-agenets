@@ -1,6 +1,7 @@
 /**
  * Supabase Browser Client
  * Production-ready client for client-side components
+ * REQUIRES valid Supabase configuration - no mocks or fallbacks
  */
 
 import { createBrowserClient } from '@supabase/ssr'
@@ -9,28 +10,31 @@ import type { Database } from './types'
 // Singleton instance - lazy initialized
 let supabaseInstance: ReturnType<typeof createBrowserClient<Database>> | null = null
 
-// Environment validation
-function getSupabaseConfig(): { url: string; anonKey: string } | null {
+/**
+ * Validate and get Supabase configuration
+ * Throws error if not properly configured
+ */
+function getSupabaseConfig(): { url: string; anonKey: string } {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Validate environment variables
+  // Validate environment variables exist
   if (!supabaseUrl || !supabaseAnonKey) {
-    return null
+    throw new Error(
+      '[Supabase] Missing configuration. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.'
+    )
   }
 
   // Validate URL format
   try {
     new URL(supabaseUrl)
   } catch {
-    console.error('[Supabase] Invalid SUPABASE_URL format')
-    return null
+    throw new Error('[Supabase] Invalid SUPABASE_URL format. Must be a valid URL.')
   }
 
   // Validate key format (should be a JWT-like string)
   if (supabaseAnonKey.length < 100) {
-    console.error('[Supabase] Invalid SUPABASE_ANON_KEY format')
-    return null
+    throw new Error('[Supabase] Invalid SUPABASE_ANON_KEY format. Key appears to be too short.')
   }
 
   return { url: supabaseUrl, anonKey: supabaseAnonKey }
@@ -38,21 +42,16 @@ function getSupabaseConfig(): { url: string; anonKey: string } | null {
 
 /**
  * Create a Supabase browser client
- * Returns mock client during SSG/build time to prevent crashes
+ * Throws error if Supabase is not configured
  */
 export function createClient(): ReturnType<typeof createBrowserClient<Database>> {
   const config = getSupabaseConfig()
-
-  if (!config) {
-    // Return mock client for SSG/build time
-    return createMockClient()
-  }
-
   return createBrowserClient<Database>(config.url, config.anonKey)
 }
 
 /**
  * Get the Supabase client singleton (for client-side use)
+ * Throws error if Supabase is not configured
  */
 export function getSupabaseClient(): ReturnType<typeof createBrowserClient<Database>> {
   // Server-side during SSG: return fresh client
@@ -68,57 +67,13 @@ export function getSupabaseClient(): ReturnType<typeof createBrowserClient<Datab
 }
 
 /**
- * Mock client for SSG/build scenarios
- * Returns safe defaults without crashing
+ * Check if Supabase is configured
+ * Returns true if all required environment variables are set
  */
-function createMockClient(): ReturnType<typeof createBrowserClient<Database>> {
-  const mockBuilder = {
-    select: () => mockBuilder,
-    insert: () => mockBuilder,
-    update: () => mockBuilder,
-    delete: () => mockBuilder,
-    eq: () => mockBuilder,
-    neq: () => mockBuilder,
-    gt: () => mockBuilder,
-    gte: () => mockBuilder,
-    lt: () => mockBuilder,
-    lte: () => mockBuilder,
-    like: () => mockBuilder,
-    ilike: () => mockBuilder,
-    is: () => mockBuilder,
-    in: () => mockBuilder,
-    contains: () => mockBuilder,
-    containedBy: () => mockBuilder,
-    range: () => mockBuilder,
-    order: () => mockBuilder,
-    limit: () => mockBuilder,
-    single: () => Promise.resolve({ data: null, error: null }),
-    maybeSingle: () => Promise.resolve({ data: null, error: null }),
-    then: (resolve: any) => resolve({ data: null, error: null }),
-  }
-
-  return {
-    from: () => mockBuilder,
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-      signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: null }),
-      signUp: () => Promise.resolve({ data: { user: null, session: null }, error: null }),
-      signOut: () => Promise.resolve({ error: null }),
-      resetPasswordForEmail: () => Promise.resolve({ error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-    },
-    storage: {
-      from: () => ({
-        upload: () => Promise.resolve({ data: null, error: null }),
-        download: () => Promise.resolve({ data: null, error: null }),
-        getPublicUrl: () => ({ data: { publicUrl: '' } }),
-        list: () => Promise.resolve({ data: [], error: null }),
-        remove: () => Promise.resolve({ data: null, error: null }),
-      }),
-    },
-    rpc: () => Promise.resolve({ data: null, error: null }),
-  } as unknown as ReturnType<typeof createBrowserClient<Database>>
+export function isSupabaseConfigured(): boolean {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return !!(supabaseUrl && supabaseAnonKey)
 }
 
 // Default export using Proxy for lazy initialization

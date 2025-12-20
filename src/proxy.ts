@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 /**
  * Next.js Proxy (Middleware)
  * Handles session management and cookie refresh for authenticated routes
+ * REQUIRES valid Supabase configuration
  */
 export async function proxy(request: NextRequest) {
     let response = NextResponse.next({
@@ -17,7 +18,18 @@ export async function proxy(request: NextRequest) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseAnonKey) {
-        // Skip Supabase session management if not configured
+        console.error('[Proxy] Supabase not configured. Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        // Return error response for protected routes
+        const pathname = request.nextUrl.pathname
+        const authRequiredPaths = ['/api/', '/dashboard']
+        const requiresAuth = authRequiredPaths.some(path => pathname.startsWith(path))
+
+        if (requiresAuth) {
+            return NextResponse.json(
+                { error: 'Authentication service not configured' },
+                { status: 503 }
+            )
+        }
         return response
     }
 
@@ -79,8 +91,18 @@ export async function proxy(request: NextRequest) {
             await supabase.auth.getSession()
         }
     } catch (error) {
-        // Log error but don't block request
+        // Log error and return service unavailable for protected routes
         console.error('[Proxy] Session refresh error:', error)
+        const pathname = request.nextUrl.pathname
+        const authRequiredPaths = ['/api/', '/dashboard']
+        const requiresAuth = authRequiredPaths.some(path => pathname.startsWith(path))
+
+        if (requiresAuth) {
+            return NextResponse.json(
+                { error: 'Authentication service error' },
+                { status: 503 }
+            )
+        }
     }
 
     return response

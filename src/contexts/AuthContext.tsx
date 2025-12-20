@@ -218,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (mounted) {
           if (error) {
+            console.error('[Auth] Session initialization error:', error)
             setLoading(false)
             return
           }
@@ -233,8 +234,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false)
         }
       } catch (error) {
+        console.error('[Auth] Fatal initialization error:', error)
         if (mounted) {
           setLoading(false)
+          // Show error to user
+          if (error instanceof Error) {
+            alert(`Authentication Error: ${error.message}\n\nPlease contact support if this persists.`)
+          }
         }
       }
     }

@@ -122,6 +122,7 @@ function createBackendClient(): AxiosInstance {
 
 /**
  * Get auth token from Supabase session
+ * Throws error if Supabase is not configured
  */
 async function getAuthToken(): Promise<string | null> {
     try {
@@ -135,17 +136,25 @@ async function getAuthToken(): Promise<string | null> {
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-            return null;
+            throw new Error(
+                '[Python Backend] Supabase not configured. Cannot retrieve auth token. ' +
+                'Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+            );
         }
 
         // Create Supabase client and get session
         const supabase = createClient(supabaseUrl, supabaseKey);
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+            console.error('[Python Backend] Error getting session:', error);
+            return null;
+        }
 
         return session?.access_token || null;
     } catch (error) {
-        console.warn('[Python Backend] Failed to get auth token:', error);
-        return null;
+        console.error('[Python Backend] Failed to get auth token:', error);
+        throw error; // Re-throw to let caller handle
     }
 }
 
