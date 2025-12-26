@@ -195,7 +195,7 @@ export const ENDPOINTS = {
 
     // Content Agent (single streaming endpoint)
     content: {
-        chat: '/content/strategist/chat',
+        chat: '/api/v1/content/strategist/chat',
     },
 
     // Media Generation

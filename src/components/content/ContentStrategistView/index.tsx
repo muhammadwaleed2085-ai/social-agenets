@@ -27,7 +27,7 @@ import { LoadingSkeleton } from './components/LoadingSkeleton';
 // Lazy load heavy components to reduce initial bundle size
 const MessageBubble = lazy(() => import('./components/MessageBubble').then(m => ({ default: m.MessageBubble })));
 const ChatInput = lazy(() => import('./components/ChatInput').then(m => ({ default: m.ChatInput })));
-const Sidebar = lazy(() => import('./components/Sidebar').then(m => ({ default: m.Sidebar })));
+const ThreadHistory = lazy(() => import('./components/ThreadHistory').then(m => ({ default: m.ThreadHistory })));
 
 // Voice Agent - floating panel for voice-powered content creation
 import { VoiceButton, VoiceButtonRef } from '../VoiceAgent';
@@ -56,7 +56,7 @@ const ContentStrategistView: React.FC<ContentStrategistViewProps> = ({ onPostCre
     const isVisibleRef = useRef(true);
 
     // Custom hooks
-    const { chatHistory, deleteThread, addThread } = useChatHistory(isHistoryVisible, workspaceId);
+    const { chatHistory, isLoadingHistory, deleteThread, renameThread, addThread } = useChatHistory(isHistoryVisible, workspaceId);
     const {
         activeThreadId,
         currentThreadId,
@@ -188,16 +188,9 @@ const ContentStrategistView: React.FC<ContentStrategistViewProps> = ({ onPostCre
         }
     }, [loadThread]);
 
-    const handleDeleteThread = useCallback(async (e: React.MouseEvent, threadId: string) => {
-        e.stopPropagation();
-
-        const currentWorkspaceId = workspaceIdRef.current;
-        if (!currentWorkspaceId) return;
-
-        if (!confirm('Are you sure you want to delete this thread?')) return;
-
+    const handleDeleteThread = useCallback(async (threadId: string) => {
         try {
-            await deleteThread(threadId, currentWorkspaceId);
+            await deleteThread(threadId);
 
             if (activeThreadId === threadId) {
                 await startNewChat();
@@ -368,19 +361,25 @@ const ContentStrategistView: React.FC<ContentStrategistViewProps> = ({ onPostCre
         <div ref={containerRef} className="flex h-full bg-background">
             {isHistoryVisible && (
                 <Suspense fallback={
-                    <div className="w-56 bg-card border-r border-border animate-pulse">
-                        <div className="pt-14 pl-4 pr-2 pb-4">
+                    <div className="w-64 bg-card border-r border-border animate-pulse">
+                        <div className="p-3 border-b border-border">
                             <div className="h-10 bg-muted rounded-lg"></div>
+                        </div>
+                        <div className="p-3 border-b border-border">
+                            <div className="h-9 bg-muted rounded-lg"></div>
                         </div>
                     </div>
                 }>
-                    <Sidebar
-                        chatHistory={chatHistory}
+                    <ThreadHistory
+                        threads={chatHistory}
                         activeThreadId={activeThreadId}
                         isCreatingNewChat={isCreatingNewChat}
+                        isLoading={isLoadingHistory}
+                        workspaceId={workspaceId}
                         onNewChat={startNewChat}
                         onSelectThread={handleSelectThread}
                         onDeleteThread={handleDeleteThread}
+                        onRenameThread={renameThread}
                     />
                 </Suspense>
             )}
@@ -437,8 +436,6 @@ const ContentStrategistView: React.FC<ContentStrategistViewProps> = ({ onPostCre
                                             key={index}
                                             msg={msg}
                                             isLoading={isLoading}
-                                            onConfirmGeneration={handleConfirmGeneration}
-                                            onCreatePost={handlePostCreation}
                                             onSuggestionClick={handleSuggestionClick}
                                         />
                                     ))}
