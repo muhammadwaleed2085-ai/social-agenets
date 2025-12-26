@@ -9,7 +9,8 @@ from langchain.agents import create_agent
 
 from .schemas import ImproveContentRequest, ImproveContentResponse, PLATFORM_GUIDELINES
 from .prompts import build_improvement_system_prompt
-from ...services import create_dynamic_model
+from langchain_google_genai import ChatGoogleGenerativeAI
+from ...config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +52,12 @@ async def improve_content_description(
         
         user_prompt += "\nProvide the improved description:"
         
-        # Create model
-        model_id = request.modelId or "google-genai:gemini-3-flash-preview"
-        model = await create_dynamic_model(model_id)
+        # Create simple Google Gemini model
+        model = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-exp",
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=0.7,
+        )
         
         # Create agent (simple, no tools)
         agent = create_agent(
@@ -63,7 +67,7 @@ async def improve_content_description(
         )
         
         # Invoke agent
-        result = await agent.invoke({
+        result = await agent.ainvoke({
             "messages": [{"role": "user", "content": user_prompt}]
         })
         

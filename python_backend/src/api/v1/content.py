@@ -10,13 +10,12 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from ...agents.content_agent import (
+from ...agents.content_strategist_agent import (
     content_strategist_chat,
     ChatStrategistRequest,
     ChatStrategistResponse,
     get_content_agent_memory
 )
-from ...services.llm_factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 
@@ -104,19 +103,16 @@ async def chat_strategist_stream(request_body: ChatStrategistRequest):
     async def generate_stream() -> AsyncGenerator[str, None]:
         """Generate SSE stream"""
         try:
-            # Initialize LLM with streaming
-            llm_factory = LLMFactory()
-            model = llm_factory.create_model(
-                model_id=request_body.modelId or "gemini-2.5-flash",
-                temperature=0.7
-            )
-            
-            if not model:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No LLM available'})}\n\n"
-                return
-            
-            # Build messages
+            # Import and create simple Google Gemini model
+            from langchain_google_genai import ChatGoogleGenerativeAI
             from langchain_core.messages import HumanMessage, SystemMessage
+            from ...config import settings
+            
+            model = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash-exp",
+                google_api_key=settings.GOOGLE_API_KEY,
+                temperature=0.7,
+            )
             
             messages = [
                 SystemMessage(content="You are an expert content strategist."),

@@ -16,7 +16,7 @@ from .schemas import (
 )
 from .prompts import get_comment_agent_system_prompt
 from ...services import is_supabase_configured, db_insert, db_select, db_update
-from ...services.llm_factory import LLMFactory
+from langchain_google_genai import ChatGoogleGenerativeAI
 from ...config import settings
 
 logger = logging.getLogger(__name__)
@@ -161,19 +161,12 @@ async def process_comments(request: ProcessCommentsRequest) -> ProcessCommentsRe
             logger.warning(f"Could not create log entry: {e}")
     
     try:
-        # Initialize LLM
-        llm_factory = LLMFactory()
-        model = llm_factory.create_model(
-            model_id="gpt-4o",
-            temperature=0.3  # Lower for consistent responses
+        # Initialize LLM - simple Google Gemini model
+        model = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-exp",
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=0.3,
         )
-        
-        if not model:
-            return ProcessCommentsResponse(
-                success=False,
-                executionTime=int((time.time() - start_time) * 1000),
-                errorMessage="No LLM model available. Configure OPENAI_API_KEY."
-            )
         
         # Create tools list
         tools = [

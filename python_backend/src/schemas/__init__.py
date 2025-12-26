@@ -1,7 +1,7 @@
 """Schemas module - Re-exports from agent folders for backward compatibility"""
 
 # Import from agent folders
-from ..agents.content_agent import (
+from ..agents.content_strategist_agent import (
     AttachmentInput,
     ChatMessage,
     ChatStrategistRequest,

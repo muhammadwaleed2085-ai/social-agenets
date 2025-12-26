@@ -1,12 +1,4 @@
 """Services module"""
-from .llm_factory import (
-    LLMFactory,
-    create_dynamic_model,
-    MODEL_ALLOWLIST,
-    ModelNotAllowedError,
-    UnsupportedProviderError,
-    MissingAPIKeyError,
-)
 from .supabase_service import (
     get_supabase_client,
     is_supabase_configured,
@@ -41,13 +33,6 @@ from .social_service import (
 )
 
 __all__ = [
-    # LLM Factory
-    "LLMFactory",
-    "create_dynamic_model",
-    "MODEL_ALLOWLIST",
-    "ModelNotAllowedError",
-    "UnsupportedProviderError",
-    "MissingAPIKeyError",
     # Supabase
     "get_supabase_client",
     "is_supabase_configured",

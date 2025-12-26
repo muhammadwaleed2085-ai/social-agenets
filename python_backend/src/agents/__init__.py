@@ -1,7 +1,7 @@
 """Agents Module - AI Agents for Content Creation"""
 
 # Content Agent (Content Strategist Chat)
-from .content_agent import (
+from .content_strategist_agent import (
     content_strategist_chat,
     get_content_agent_memory,
     close_content_agent_memory,

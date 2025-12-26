@@ -10,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import settings
-from .services import LLMFactory
 from .middleware.auth import AuthMiddleware
 
 # Configure logging
@@ -51,14 +50,8 @@ async def lifespan(app: FastAPI):
     for error in validation_errors:
         logger.warning(f"Config warning: {error}")
     
-    # Initialize LLM Factory
-    try:
-        app.state.llm_factory = LLMFactory()
-        await app.state.llm_factory.initialize()
-        logger.info("LLM Factory initialized")
-    except Exception as e:
-        logger.error(f"Failed to initialize LLM Factory: {e}")
-        raise
+    # LLM models are created on-demand per request
+    logger.info("Using on-demand LLM model creation")
     
     # Log configured providers
     providers = []
@@ -82,11 +75,6 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Content Creator Backend...")
-    try:
-        await app.state.llm_factory.close()
-        logger.info("LLM Factory closed")
-    except Exception as e:
-        logger.error(f"Error during shutdown: {e}")
     
     logger.info("Application shutdown complete")
 
@@ -190,51 +178,11 @@ async def root():
 @app.get("/health")
 async def health_check(request: Request):
     """Health check endpoint"""
-    llm_status = "healthy"
-    try:
-        if not hasattr(request.app.state, "llm_factory"):
-            llm_status = "not_initialized"
-    except Exception as e:
-        llm_status = f"error: {str(e)}"
-    
     return JSONResponse(
         content={
             "status": "healthy",
             "service": "content-creator-backend",
-            "llm_factory": llm_status,
             "environment": "production" if settings.is_production else "development",
-        }
-    )
-
-
-@app.get("/api/v1/providers")
-async def list_providers():
-    """List available AI providers and their configuration status"""
-    from .services import MODEL_ALLOWLIST
-    
-    providers_status = {
-        "openai": {
-            "configured": bool(settings.OPENAI_API_KEY),
-            "models": [m for m in MODEL_ALLOWLIST if m.startswith("openai:")],
-        },
-        "anthropic": {
-            "configured": bool(settings.ANTHROPIC_API_KEY),
-            "models": [m for m in MODEL_ALLOWLIST if m.startswith("anthropic:")],
-        },
-        "google-genai": {
-            "configured": bool(settings.gemini_key),
-            "models": [m for m in MODEL_ALLOWLIST if m.startswith("google-genai:")],
-        },
-        "groq": {
-            "configured": bool(settings.GROQ_API_KEY),
-            "models": [m for m in MODEL_ALLOWLIST if m.startswith("groq:")],
-        },
-    }
-    
-    return JSONResponse(
-        content={
-            "providers": providers_status,
-            "default_model": settings.DEFAULT_MODEL_ID,
         }
     )
 
