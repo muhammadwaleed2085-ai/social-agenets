@@ -6,6 +6,10 @@
 
 This document provides a comprehensive overview of the social media platform integration architecture, including OAuth authentication, token management, content publishing, and data storage.
 
+## High-Level Overview
+
+![High-Level Architecture Overview](images/high_level_overview.png)
+
 ---
 
 ## Table of Contents
@@ -31,54 +35,17 @@ The social platform integration system enables users to:
 - Manage tokens with automatic refresh
 - Track publishing status and analytics
 
-```mermaid
-graph TB
-    subgraph "Frontend (Next.js)"
-        UI[User Interface]
-        FE_Services[Platform Services]
-    end
-    
-    subgraph "API Gateway (Next.js Rewrites)"
-        Proxy["/api/* → Python Backend"]
-    end
-    
-    subgraph "Python Backend (FastAPI)"
-        Auth[Auth Router]
-        Social[Social Routers]
-        TokenService[Token Refresh Service]
-        PlatformServices[Platform Services]
-    end
-    
-    subgraph "External APIs"
-        Twitter[Twitter/X API v2]
-        Facebook[Facebook Graph API]
-        Instagram[Instagram Graph API]
-        LinkedIn[LinkedIn REST API]
-        TikTok[TikTok API v2]
-        YouTube[YouTube Data API v3]
-    end
-    
-    subgraph "Data Layer"
-        Supabase[(Supabase DB)]
-        Cloudinary[(Cloudinary CDN)]
-    end
-    
-    UI --> FE_Services
-    FE_Services --> Proxy
-    Proxy --> Auth
-    Proxy --> Social
-    Auth --> TokenService
-    Social --> PlatformServices
-    PlatformServices --> Twitter
-    PlatformServices --> Facebook
-    PlatformServices --> Instagram
-    PlatformServices --> LinkedIn
-    PlatformServices --> TikTok
-    PlatformServices --> YouTube
-    Auth --> Supabase
-    Social --> Supabase
-    Social --> Cloudinary
-```
+![System Architecture](images/system_architecture.png)
+
+### Architecture Layers
+
+| Layer | Technology | Responsibility |
+|-------|------------|----------------|
+| Frontend | Next.js | UI, Platform Services |
+| API Gateway | Next.js Rewrites | Route proxying to backend |
+| Backend | FastAPI (Python) | Auth, Publishing, Token Management |
+| Data | Supabase + Cloudinary | Storage, CDN |
+| External | Platform APIs | Twitter, Facebook, etc. |
 
 ---
 
@@ -97,7 +64,7 @@ graph TB
 
 ## Architecture Components
 
-### Backend Services
+### Backend Structure
 
 ```
 python_backend/src/
@@ -124,7 +91,7 @@ python_backend/src/
 │       └── youtube_service.py      # YouTube API client
 ```
 
-### Frontend Services
+### Frontend Structure
 
 ```
 src/services/platforms/
@@ -141,59 +108,29 @@ src/services/platforms/
 
 ## OAuth Authentication Flow
 
-### 1. OAuth Initiation
+### OAuth Sequence Diagram
 
-User clicks "Connect" → Frontend calls backend → Backend generates OAuth URL → User redirected to platform.
+![OAuth Flow](images/oauth_flow.png)
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant BE as Python Backend
-    participant DB as Supabase
-    participant P as Platform OAuth
+### Flow Steps
 
-    U->>FE: Click "Connect [Platform]"
-    FE->>BE: POST /api/auth/oauth/{platform}/initiate
-    BE->>BE: Generate state + PKCE
-    BE->>DB: Store oauth_states
-    BE-->>FE: Return authorization_url
-    FE->>P: Redirect to OAuth page
-    U->>P: Grant permissions
-    P->>BE: Callback with code + state
-    BE->>DB: Verify state
-    BE->>P: Exchange code for token
-    P-->>BE: Access token + refresh token
-    BE->>DB: Store in social_accounts
-    BE->>FE: Redirect to success page
-```
+1. **User Initiates** - Clicks "Connect [Platform]" button
+2. **Generate State** - Backend creates unique state + PKCE challenge
+3. **Store State** - State saved to `oauth_states` table with expiry
+4. **Redirect** - User sent to platform OAuth consent screen
+5. **User Grants** - User approves requested permissions
+6. **Callback** - Platform redirects to callback URL with code
+7. **Verify State** - Backend validates state matches stored value
+8. **Exchange Token** - Code exchanged for access/refresh tokens
+9. **Store Credentials** - Tokens stored encrypted in `social_accounts`
+10. **Success Redirect** - User sent to success page
 
-### 2. PKCE Flow (for Twitter)
+### PKCE Security (Twitter)
 
-```mermaid
-flowchart LR
-    A[Generate Code Verifier] --> B[SHA256 Hash]
-    B --> C[Base64 URL Encode]
-    C --> D[Code Challenge]
-    D --> E[Include in Auth URL]
-    E --> F[Platform Verifies on Callback]
-```
-
-### 3. Token Exchange
-
-```mermaid
-sequenceDiagram
-    participant BE as Backend
-    participant P as Platform API
-    participant DB as Database
-
-    BE->>P: POST /oauth/token
-    Note right of BE: code + code_verifier
-    P-->>BE: access_token, refresh_token, expires_in
-    BE->>BE: Calculate expires_at
-    BE->>DB: UPDATE social_accounts
-    Note right of DB: credentials_encrypted, expires_at
-```
+For enhanced security, Twitter uses PKCE:
+- **Code Verifier**: Random 128-character string
+- **Code Challenge**: SHA256 hash of verifier (Base64 URL encoded)
+- **Verification**: Platform verifies challenge on token exchange
 
 ---
 
@@ -201,105 +138,53 @@ sequenceDiagram
 
 ### On-Demand Refresh Strategy
 
-The system uses **on-demand token refresh** - no cron jobs required.
+The system uses **on-demand token refresh** - no cron jobs required. Tokens are refreshed automatically when making API calls if expired.
 
-```mermaid
-flowchart TD
-    A[API Request] --> B{Token expired?}
-    B -->|No| C[Use existing token]
-    B -->|Yes| D{Has refresh token?}
-    D -->|Yes| E[Refresh token automatically]
-    D -->|No| F[Return needs_reconnect error]
-    E --> G{Refresh successful?}
-    G -->|Yes| H[Update DB + Use new token]
-    G -->|No| I{Retry count < 3?}
-    I -->|Yes| E
-    I -->|No| F
-    C --> J[Make API call]
-    H --> J
-```
+![Token Refresh Flow](images/token_refresh_flow.png)
 
-### Token Refresh Service Flow
+### Refresh Decision Flow
 
-```mermaid
-sequenceDiagram
-    participant API as API Endpoint
-    participant TRS as TokenRefreshService
-    participant DB as Database
-    participant P as Platform API
+| Condition | Action |
+|-----------|--------|
+| Token valid | Use existing token |
+| Token expired + has refresh | Attempt refresh |
+| Refresh successful | Update DB, use new token |
+| Refresh failed (retry < 3) | Retry refresh |
+| Refresh failed (max retries) | Return `needs_reconnect` |
+| No refresh token | Return `needs_reconnect` |
 
-    API->>TRS: get_valid_credentials(platform, workspace_id)
-    TRS->>DB: SELECT from social_accounts
-    TRS->>TRS: Check if expired
-    
-    alt Token Valid
-        TRS-->>API: Return credentials
-    else Token Expired
-        TRS->>P: POST refresh token
-        P-->>TRS: New access_token
-        TRS->>DB: UPDATE credentials_encrypted
-        TRS-->>API: Return new credentials
-    else Refresh Failed
-        TRS->>DB: Increment error_count
-        TRS-->>API: Return needs_reconnect
-    end
-```
+### Token Expiration by Platform
+
+| Platform | Access Token | Refresh Token |
+|----------|--------------|---------------|
+| Twitter | 2 hours | 6 months |
+| Facebook | 60 days | N/A (use access token) |
+| Instagram | 60 days | N/A (use access token) |
+| LinkedIn | 60 days | 1 year |
+| TikTok | 24 hours | 365 days |
+| YouTube | 1 hour | Indefinite |
 
 ---
 
 ## Content Publishing Flow
 
-### 1. Single Platform Post
+### Multi-Platform Publishing
 
-```mermaid
-sequenceDiagram
-    participant FE as Frontend
-    participant BE as Backend
-    participant TRS as Token Service
-    participant PS as Platform Service
-    participant P as Platform API
-    participant DB as Database
+![Publishing Flow](images/publishing_flow.png)
 
-    FE->>BE: POST /api/{platform}/post
-    BE->>TRS: Get valid credentials
-    TRS-->>BE: Credentials (auto-refreshed if needed)
-    BE->>PS: post_content(credentials, content)
-    
-    alt Has Media
-        PS->>P: Upload media
-        P-->>PS: media_id
-    end
-    
-    PS->>P: Create post
-    P-->>PS: post_id, url
-    PS-->>BE: Success response
-    BE->>DB: Store in post_platforms
-    BE-->>FE: Return post_id, url
-```
+### Publishing Steps
 
-### 2. Multi-Platform Publishing
+1. **Create Post** - User composes content with media
+2. **Select Platforms** - Choose target platforms
+3. **Platform Templates** - Apply platform-specific formatting
+4. **For Each Platform**:
+   - Get valid credentials (auto-refresh if needed)
+   - Upload media to platform (if applicable)
+   - Publish content
+   - Store `platform_post_id` in database
+5. **Return Results** - Combined success/failure status
 
-```mermaid
-flowchart TD
-    A[User Creates Post] --> B[Select Platforms]
-    B --> C[Platform Templates Applied]
-    C --> D{For Each Platform}
-    D --> E[Get Valid Credentials]
-    E --> F{Credentials Valid?}
-    F -->|Yes| G[Upload Media if needed]
-    F -->|No| H[Mark as Failed]
-    G --> I[Publish to Platform]
-    I --> J{Success?}
-    J -->|Yes| K[Store platform_post_id]
-    J -->|No| L[Log Error]
-    K --> M{More Platforms?}
-    L --> M
-    H --> M
-    M -->|Yes| D
-    M -->|No| N[Return Combined Result]
-```
-
-### 3. Platform-Specific Content Types
+### Platform Content Support
 
 | Platform | Post | Image | Video | Carousel | Reel | Story |
 |----------|------|-------|-------|----------|------|-------|
@@ -314,74 +199,48 @@ flowchart TD
 
 ## Database Schema
 
+### Entity Relationship Diagram
+
+![Database Schema](images/database_schema.png)
+
 ### Core Tables
 
-```mermaid
-erDiagram
-    workspaces ||--o{ social_accounts : has
-    workspaces ||--o{ oauth_states : has
-    workspaces ||--o{ posts : has
-    posts ||--o{ post_platforms : has
-    posts ||--o{ post_media : has
-    media_assets ||--o{ post_media : used_in
+#### `social_accounts`
+Stores connected platform credentials:
 
-    social_accounts {
-        uuid id PK
-        uuid workspace_id FK
-        enum platform
-        text credentials_encrypted
-        varchar refresh_token_encrypted
-        timestamp expires_at
-        timestamp last_refreshed_at
-        int refresh_error_count
-        bool is_connected
-    }
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| workspace_id | UUID | FK to workspaces |
+| platform | ENUM | twitter, facebook, etc. |
+| credentials_encrypted | TEXT | Encrypted JSONB credentials |
+| refresh_token_encrypted | VARCHAR | Encrypted refresh token |
+| expires_at | TIMESTAMP | Token expiration time |
+| last_refreshed_at | TIMESTAMP | Last refresh timestamp |
+| refresh_error_count | INT | Failed refresh attempts |
+| is_connected | BOOL | Connection status |
 
-    oauth_states {
-        uuid id PK
-        uuid workspace_id FK
-        enum platform
-        varchar state UK
-        varchar code_challenge
-        timestamp expires_at
-        bool is_used
-    }
+#### `oauth_states`
+Temporary OAuth state storage:
 
-    posts {
-        uuid id PK
-        uuid workspace_id FK
-        text topic
-        jsonb content
-        array platforms
-        timestamp scheduled_at
-        enum status
-    }
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| workspace_id | UUID | FK to workspaces |
+| platform | ENUM | Target platform |
+| state | VARCHAR | Unique state string |
+| code_challenge | VARCHAR | PKCE challenge |
+| expires_at | TIMESTAMP | State expiration (10 min) |
+| is_used | BOOL | Prevents replay attacks |
 
-    post_platforms {
-        uuid id PK
-        uuid post_id FK
-        enum platform
-        varchar platform_post_id
-        varchar platform_status
-        timestamp posted_at
-    }
-```
+#### `posts` / `post_platforms`
+Post tracking per platform:
 
-### Credentials Storage
-
-Credentials are stored in JSONB format within `credentials_encrypted`:
-
-```json
-{
-  "accessToken": "...",
-  "refreshToken": "...",
-  "expiresAt": "2025-01-28T00:00:00Z",
-  "userId": "123456",
-  "username": "@user",
-  "pageId": "...",
-  "pageName": "..."
-}
-```
+| Column | Type | Description |
+|--------|------|-------------|
+| platform_post_id | VARCHAR | Platform's post ID |
+| platform_status | VARCHAR | posted, failed, pending |
+| posted_at | TIMESTAMP | Publish timestamp |
 
 ---
 
@@ -398,17 +257,9 @@ Credentials are stored in JSONB format within `credentials_encrypted`:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/tokens/get/{platform}` | Get valid credentials (auto-refresh) |
-| POST | `/api/tokens/refresh/{platform}` | Force token refresh |
-| GET | `/api/tokens/status` | Get all token statuses |
-
-### Credentials
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/credentials` | List connected accounts |
-| GET | `/api/credentials/{platform}` | Get platform credentials |
-| DELETE | `/api/credentials/{platform}` | Disconnect account |
+| GET | `/api/tokens/get/{platform}` | Get valid credentials |
+| POST | `/api/tokens/refresh/{platform}` | Force refresh |
+| GET | `/api/tokens/status` | All token statuses |
 
 ### Publishing
 
@@ -427,84 +278,46 @@ Credentials are stored in JSONB format within `credentials_encrypted`:
 
 ### Error Types
 
-```mermaid
-flowchart TD
-    A[Error Occurs] --> B{Error Type?}
-    B -->|Token Expired| C[Attempt Refresh]
-    B -->|Rate Limited| D[Return retry_after]
-    B -->|Invalid Credentials| E[needs_reconnect: true]
-    B -->|API Error| F[Log + Return error]
-    B -->|Network Error| G[Retry with backoff]
-```
-
-### Error Codes
-
 | Code | Description | User Action |
 |------|-------------|-------------|
 | `token_expired` | Token needs refresh | Automatic |
-| `refresh_failed` | Couldn't refresh token | Reconnect account |
-| `rate_limited` | API rate limit hit | Wait and retry |
+| `refresh_failed` | Couldn't refresh | Reconnect account |
+| `rate_limited` | API rate limit | Wait and retry |
 | `invalid_credentials` | Token revoked | Reconnect account |
-| `platform_error` | Platform API error | Check platform status |
+| `platform_error` | Platform API error | Check platform |
+
+### Error Response Format
+
+```json
+{
+  "success": false,
+  "error": "Token expired and refresh failed",
+  "error_type": "refresh_failed",
+  "needs_reconnect": true,
+  "platform": "twitter"
+}
+```
 
 ---
 
 ## Security Considerations
 
 ### Token Security
-
-1. **Encryption at Rest**: Credentials stored encrypted in database
-2. **PKCE**: Used for Twitter/X OAuth 2.0 flow
-3. **State Validation**: OAuth state verified to prevent CSRF
-4. **Short Expiry**: OAuth states expire in 10 minutes
+- ✅ Credentials encrypted at rest in database
+- ✅ PKCE used for OAuth 2.0 flows
+- ✅ OAuth states expire in 10 minutes
+- ✅ State validation prevents CSRF attacks
 
 ### API Security
+- ✅ JWT required for all authenticated endpoints
+- ✅ Workspace isolation enforced
+- ✅ HTTPS required in production
+- ✅ Rate limiting on all endpoints
 
-1. **JWT Authentication**: All API calls require valid JWT
-2. **Workspace Isolation**: Users can only access their workspace data
-3. **HTTPS Only**: All production traffic encrypted
-4. **Rate Limiting**: API endpoints protected against abuse
-
-### Best Practices
-
-```mermaid
-mindmap
-  root((Security))
-    Token Storage
-      Encrypted in DB
-      Never in browser localStorage
-      Server-side only
-    OAuth
-      PKCE for all flows
-      State verification
-      Short-lived states
-    API
-      JWT required
-      CORS configured
-      Rate limiting
-    Audit
-      credential_audit_log table
-      Track all token operations
-```
-
----
-
-## Monitoring & Observability
-
-### Health Checks
-
-- `/api/tokens/health` - Token service health
-- `/api/auth/` - Auth service status
-- `/api/{platform}/info` - Platform API status
-
-### Metrics to Track
-
-| Metric | Description | Alert Threshold |
-|--------|-------------|-----------------|
-| Token refresh success rate | % of successful refreshes | < 95% |
-| OAuth completion rate | % of successful connections | < 80% |
-| Publishing success rate | % of successful posts | < 90% |
-| API latency p99 | 99th percentile latency | > 5s |
+### Audit Trail
+- ✅ `credential_audit_log` tracks all token operations
+- ✅ IP address and user agent logged
+- ✅ Success/failure status recorded
 
 ---
 
@@ -514,7 +327,7 @@ mindmap
 |----------|-------------|---------------|
 | Twitter/X | v2 | [X API Docs](https://developer.twitter.com/en/docs/twitter-api) |
 | Facebook | v24.0 | [Graph API Docs](https://developers.facebook.com/docs/graph-api) |
-| Instagram | v24.0 (Graph API) | [Instagram API Docs](https://developers.facebook.com/docs/instagram-graph-api) |
+| Instagram | v24.0 | [Instagram API Docs](https://developers.facebook.com/docs/instagram-graph-api) |
 | LinkedIn | v2 / REST | [LinkedIn API Docs](https://learn.microsoft.com/linkedin/) |
 | TikTok | v2 | [TikTok API Docs](https://developers.tiktok.com/) |
 | YouTube | v3 | [YouTube API Docs](https://developers.google.com/youtube/v3) |
