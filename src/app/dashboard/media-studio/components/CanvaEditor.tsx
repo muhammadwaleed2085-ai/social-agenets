@@ -55,6 +55,17 @@ interface CanvaEditorProps {
   onMediaSaved?: (url: string) => void;
 }
 
+/**
+ * Helper to get thumbnail URL from design - handles both formats:
+ * - { thumbnail: { url: string } } (Canva API format)
+ * - { thumbnail_url: string } (our backend format)
+ */
+function getDesignThumbnailUrl(design: CanvaDesign): string | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = design as any;
+  return design.thumbnail?.url || d.thumbnail_url;
+}
+
 export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
   const { workspaceId, user } = useAuth();
 
@@ -99,10 +110,12 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
     }
   };
 
-  // Check connection on mount
+  // Check connection on mount or when user becomes available
   useEffect(() => {
-    checkConnection();
-  }, []);
+    if (user?.id) {
+      checkConnection();
+    }
+  }, [user?.id]);
 
   // Check URL params for connection status
   useEffect(() => {
@@ -118,20 +131,26 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
     }
   }, []);
 
-  // Load data when connected
+  // Load data when connected and user is available
   useEffect(() => {
-    if (isConnected && workspaceId) {
+    if (isConnected && workspaceId && user?.id) {
       fetchDesigns();
       fetchLibraryItems();
     }
-  }, [isConnected, workspaceId]);
+  }, [isConnected, workspaceId, user?.id]);
 
   const checkConnection = async () => {
+    if (!user?.id) {
+      setIsCheckingConnection(false);
+      return;
+    }
+
     setIsCheckingConnection(true);
     try {
-      const response = await fetch('/api/canva/designs');
+      const response = await fetch(`/api/canva/auth/status?user_id=${user.id}`);
       if (response.ok) {
-        setIsConnected(true);
+        const data = await response.json();
+        setIsConnected(data.connected && !data.isExpired);
       } else {
         const data = await response.json();
         setIsConnected(!data.needsAuth);
@@ -144,14 +163,22 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
   };
 
   const fetchDesigns = async () => {
+    if (!user?.id) return;
+
     setIsLoadingDesigns(true);
     try {
-      const response = await fetch('/api/canva/designs');
+      const response = await fetch(`/api/canva/designs?user_id=${user.id}`);
       if (response.ok) {
         const data = await response.json();
         setDesigns(data.items || []);
+      } else {
+        const error = await response.json();
+        if (error.needsAuth) {
+          setIsConnected(false);
+        }
       }
     } catch (error) {
+      console.error('Failed to fetch designs:', error);
     } finally {
       setIsLoadingDesigns(false);
     }
@@ -198,7 +225,7 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
       } catch (e) {
       }
 
-      const response = await fetch('/api/canva/designs', {
+      const response = await fetch(`/api/canva/designs?user_id=${user?.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -269,7 +296,7 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
     try {
       // First, check available export formats to determine if this is a video design
       // This is more reliable than checking design_type or title
-      const formatsResponse = await fetch(`/api/canva/export-formats?designId=${design.id}`);
+      const formatsResponse = await fetch(`/api/canva/export-formats?user_id=${user?.id}&designId=${design.id}`);
 
       let format = 'png'; // Default to PNG for images
       let isVideoDesign = false;
@@ -315,12 +342,13 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
       }
 
       // Now export with the determined format
-      const response = await fetch('/api/canva/export', {
+      const response = await fetch(`/api/canva/export?user_id=${user?.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           designId: design.id,
           workspaceId,
+          userId: user?.id,
           format,
           quality: 'high',
         }),
@@ -385,7 +413,7 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
 
     try {
       // Check available export formats
-      const formatsResponse = await fetch(`/api/canva/export-formats?designId=${design.id}`);
+      const formatsResponse = await fetch(`/api/canva/export-formats?user_id=${user?.id}&designId=${design.id}`);
 
       let format = 'png';
       let isVideoDesign = false;
@@ -412,12 +440,13 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
       }
 
       // Export the design
-      const response = await fetch('/api/canva/export', {
+      const response = await fetch(`/api/canva/export?user_id=${user?.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           designId: design.id,
           workspaceId,
+          userId: user?.id,
           format,
           quality: 'high',
           saveToLibrary: true,
@@ -490,7 +519,7 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
 
     try {
       // Check available export formats
-      const formatsResponse = await fetch(`/api/canva/export-formats?designId=${design.id}`);
+      const formatsResponse = await fetch(`/api/canva/export-formats?user_id=${user?.id}&designId=${design.id}`);
 
       let format = 'png';
       let isVideoDesign = false;
@@ -517,12 +546,13 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
       }
 
       // Export the design (also save to library so user can delete file later)
-      const response = await fetch('/api/canva/export', {
+      const response = await fetch(`/api/canva/export?user_id=${user?.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           designId: design.id,
           workspaceId,
+          userId: user?.id,
           format,
           quality: 'high',
           saveToLibrary: true, // Save to library so user can manage/delete the file
@@ -948,9 +978,9 @@ export function CanvaEditor({ onMediaSaved }: CanvaEditorProps) {
                       key={design.id}
                       className="relative group rounded-lg overflow-hidden border bg-muted"
                     >
-                      {design.thumbnail?.url ? (
+                      {getDesignThumbnailUrl(design) ? (
                         <img
-                          src={design.thumbnail.url}
+                          src={getDesignThumbnailUrl(design)}
                           alt={design.title}
                           className="aspect-[4/3] object-cover w-full"
                         />

@@ -235,9 +235,11 @@ export const ENDPOINTS = {
     // Canva
     canva: {
         auth: '/canva/auth',
+        authStatus: '/canva/auth/status',
         callback: '/canva/callback',
         designs: '/canva/designs',
         export: '/canva/export',
+        exportFormats: '/canva/export-formats',
         disconnect: '/canva/disconnect',
     },
 

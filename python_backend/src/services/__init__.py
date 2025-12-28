@@ -37,6 +37,20 @@ from .token_refresh_service import (
     CredentialsResult,
     RefreshErrorType,
 )
+from .canva_service import (
+    get_canva_token,
+    save_canva_tokens,
+    delete_canva_tokens,
+    get_canva_connection_status,
+    create_canva_oauth_state,
+    verify_canva_oauth_state,
+    list_designs as canva_list_designs,
+    get_design as canva_get_design,
+    create_design as canva_create_design,
+    get_export_formats as canva_get_export_formats,
+    export_design as canva_export_design,
+    CanvaServiceError,
+)
 
 __all__ = [
     # Supabase
@@ -72,6 +86,19 @@ __all__ = [
     "close_token_refresh_service",
     "CredentialsResult",
     "RefreshErrorType",
+    # Canva Integration
+    "get_canva_token",
+    "save_canva_tokens",
+    "delete_canva_tokens",
+    "get_canva_connection_status",
+    "create_canva_oauth_state",
+    "verify_canva_oauth_state",
+    "canva_list_designs",
+    "canva_get_design",
+    "canva_create_design",
+    "canva_get_export_formats",
+    "canva_export_design",
+    "CanvaServiceError",
 ]
 
 

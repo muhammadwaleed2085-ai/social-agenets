@@ -127,11 +127,16 @@ const AccountSettingsTab: React.FC = () => {
 
   // Check Canva connection status
   const checkCanvaConnection = async () => {
+    if (!user?.id) {
+      setCanvaLoading(false)
+      return
+    }
     setCanvaLoading(true)
     try {
-      const response = await fetch('/api/canva/designs')
+      const response = await fetch(`/api/canva/auth/status?user_id=${user.id}`)
       if (response.ok) {
-        setCanvaConnected(true)
+        const data = await response.json()
+        setCanvaConnected(data.connected && !data.isExpired)
       } else {
         const data = await response.json()
         setCanvaConnected(!data.needsAuth)
@@ -145,10 +150,14 @@ const AccountSettingsTab: React.FC = () => {
 
   // Handle Canva connect
   const handleCanvaConnect = async () => {
+    if (!user?.id) {
+      setCanvaError('Please log in to connect Canva')
+      return
+    }
     setCanvaConnecting(true)
     setCanvaError(null)
     try {
-      const response = await fetch('/api/canva/auth')
+      const response = await fetch(`/api/canva/auth?user_id=${user.id}`)
       const data = await response.json()
 
       if (data.authUrl) {
@@ -165,8 +174,12 @@ const AccountSettingsTab: React.FC = () => {
 
   // Handle Canva disconnect
   const handleCanvaDisconnect = async () => {
+    if (!user?.id) {
+      setCanvaError('Please log in to disconnect Canva')
+      return
+    }
     try {
-      const response = await fetch('/api/canva/disconnect', { method: 'POST' })
+      const response = await fetch(`/api/canva/disconnect?user_id=${user.id}`, { method: 'POST' })
       if (response.ok) {
         setCanvaConnected(false)
         setCanvaError(null)

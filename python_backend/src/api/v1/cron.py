@@ -1,0 +1,867 @@
+"""
+Cron Job API Router: Scheduled Post Publishing
+
+Endpoint: GET /api/v1/cron/publish-scheduled
+
+This endpoint is called by external cron services (cron-job.org)
+to automatically publish posts that have reached their scheduled time.
+
+Security: Protected by CRON_SECRET environment variable
+
+Setup with cron-job.org:
+1. Create account at https://cron-job.org
+2. Add new cron job:
+   - URL: https://your-backend-url.com/api/v1/cron/publish-scheduled
+   - Method: GET
+   - Schedule: Every 1 minute (* * * * *)
+   - Headers: X-Cron-Secret: YOUR_CRON_SECRET
+3. Enable failure notifications
+"""
+
+import logging
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone
+from fastapi import APIRouter, HTTPException, Request, Header
+from pydantic import BaseModel, Field
+
+from ...services.supabase_service import get_supabase_admin_client
+from ...config import settings
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/cron", tags=["Cron"])
+
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+CONFIG = {
+    "MAX_RETRY_COUNT": 3,           # Max publish attempts before marking as failed
+    "MAX_POSTS_PER_RUN": 50,        # Max posts to process per cron run (avoid timeout)
+    "REQUEST_TIMEOUT_SECONDS": 30,  # Timeout for platform API calls
+}
+
+
+# ============================================================================
+# MODELS
+# ============================================================================
+
+class PublishResult(BaseModel):
+    """Result of publishing to a single platform"""
+    platform: str
+    success: bool
+    postId: Optional[str] = None
+    error: Optional[str] = None
+
+
+class ProcessedPost(BaseModel):
+    """Result of processing a single scheduled post"""
+    postId: str
+    topic: str
+    status: str  # 'published', 'failed', 'partial'
+    platforms: List[PublishResult]
+
+
+class CronResponse(BaseModel):
+    """Response from cron endpoint"""
+    success: bool
+    message: Optional[str] = None
+    processed: int
+    published: int
+    failed: int
+    results: Optional[List[ProcessedPost]] = None
+    error: Optional[str] = None
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def verify_cron_auth(x_cron_secret: Optional[str]) -> bool:
+    """
+    Verify cron authentication via X-Cron-Secret header
+    
+    Args:
+        x_cron_secret: Secret from header
+        
+    Returns:
+        True if authorized, False otherwise
+    """
+    cron_secret = getattr(settings, 'CRON_SECRET', None)
+    
+    # If no CRON_SECRET is set, allow in development mode
+    if not cron_secret:
+        if not settings.is_production:
+            logger.warning("CRON_SECRET not set - allowing request in development mode")
+            return True
+        return False
+    
+    return x_cron_secret == cron_secret
+
+
+async def get_platform_credentials(workspace_id: str, platform: str) -> Dict[str, Any]:
+    """
+    Get platform credentials from database
+    
+    Args:
+        workspace_id: Workspace ID
+        platform: Platform name (twitter, instagram, etc.)
+        
+    Returns:
+        Credentials dict
+        
+    Raises:
+        Exception: If credentials not found
+    """
+    supabase = get_supabase_admin_client()
+    
+    result = supabase.table("social_accounts").select(
+        "credentials_encrypted,is_active"
+    ).eq("workspace_id", workspace_id).eq("platform", platform).limit(1).execute()
+    
+    if not result.data:
+        raise Exception(f"{platform} not connected for workspace {workspace_id}")
+    
+    account = result.data[0]
+    
+    if not account.get("is_active"):
+        raise Exception(f"{platform} account is inactive")
+    
+    credentials = account.get("credentials_encrypted", {})
+    
+    if not credentials:
+        raise Exception(f"No credentials found for {platform}")
+    
+    return credentials
+
+
+async def publish_to_platform(
+    platform: str,
+    post: Dict[str, Any],
+    credentials: Dict[str, Any]
+) -> PublishResult:
+    """
+    Publish a post to a single platform
+    
+    Args:
+        platform: Platform name
+        post: Post data from database
+        credentials: Platform credentials
+        
+    Returns:
+        PublishResult
+    """
+    try:
+        # Extract content for this platform
+        content = post.get("content", {})
+        raw_content = content.get(platform) or post.get("topic", "")
+        
+        # Convert content to string (handle structured content objects)
+        text_content = ""
+        if isinstance(raw_content, str):
+            text_content = raw_content
+        elif isinstance(raw_content, dict):
+            text_content = raw_content.get("description") or raw_content.get("content") or \
+                          raw_content.get("title") or raw_content.get("caption") or ""
+        
+        # Fallback to topic
+        if not text_content and post.get("topic"):
+            text_content = post["topic"]
+        
+        # Extract media from content JSONB
+        generated_image = content.get("generatedImage")
+        generated_video_url = content.get("generatedVideoUrl")
+        carousel_images = content.get("carouselImages", [])
+        
+        # Determine media URL
+        media_url = generated_image or generated_video_url
+        if not media_url and carousel_images:
+            media_url = carousel_images[0]
+        
+        # Determine media type
+        video_post_types = ["reel", "video", "short"]
+        post_type = post.get("post_type", "post")
+        media_type = "video" if post_type in video_post_types or generated_video_url else "image"
+        
+        # Import platform services
+        if platform == "twitter":
+            from ...services.platforms.twitter_service import twitter_service
+            
+            access_token = credentials.get("accessToken", "")
+            access_token_secret = credentials.get("accessTokenSecret", "")
+            
+            # Upload media if needed
+            media_ids = []
+            if media_url:
+                upload_result = await twitter_service.upload_media_from_url(
+                    access_token, access_token_secret, media_url
+                )
+                if upload_result.get("success"):
+                    media_ids = [upload_result["media_id"]]
+            
+            # Post tweet
+            result = await twitter_service.post_tweet(
+                access_token, access_token_secret, text_content, media_ids if media_ids else None
+            )
+            
+            if result.get("success"):
+                return PublishResult(
+                    platform=platform,
+                    success=True,
+                    postId=result.get("tweet_id")
+                )
+            else:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error=result.get("error", "Failed to post")
+                )
+                
+        elif platform == "instagram":
+            from ...services.social_service import social_service
+            
+            access_token = credentials.get("accessToken", "")
+            ig_user_id = credentials.get("userId", "")
+            
+            if not media_url and not carousel_images:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error="Instagram requires media"
+                )
+            
+            try:
+                # Check if carousel
+                if carousel_images and len(carousel_images) >= 2:
+                    container_result = await social_service.instagram_create_carousel_container(
+                        ig_user_id, access_token, carousel_images, text_content
+                    )
+                elif post_type == "reel" or media_type == "video":
+                    container_result = await social_service.instagram_create_reels_container(
+                        ig_user_id, access_token, media_url, text_content
+                    )
+                elif post_type == "story":
+                    container_result = await social_service.instagram_create_story_container(
+                        ig_user_id, access_token, media_url, media_type == "video"
+                    )
+                else:
+                    # Regular image post
+                    container_result = await social_service.instagram_create_media_container(
+                        ig_user_id, access_token, media_url, text_content
+                    )
+                
+                if not container_result.get("success"):
+                    return PublishResult(
+                        platform=platform,
+                        success=False,
+                        error=container_result.get("error", "Failed to create container")
+                    )
+                
+                container_id = container_result.get("container_id") or container_result.get("id")
+                
+                # Wait for container to be ready
+                await social_service.instagram_wait_for_container_ready(container_id, access_token)
+                
+                # Publish the container
+                publish_result = await social_service.instagram_publish_media_container(
+                    ig_user_id, access_token, container_id
+                )
+                
+                if publish_result.get("success"):
+                    return PublishResult(
+                        platform=platform,
+                        success=True,
+                        postId=publish_result.get("post_id") or publish_result.get("id")
+                    )
+                else:
+                    return PublishResult(
+                        platform=platform,
+                        success=False,
+                        error=publish_result.get("error", "Failed to publish")
+                    )
+                    
+            except Exception as e:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error=str(e)
+                )
+                
+        elif platform == "facebook":
+            from ...services.social_service import social_service
+            
+            access_token = credentials.get("accessToken", "")
+            page_id = credentials.get("pageId", "")
+            
+            try:
+                # Check if carousel
+                if carousel_images and len(carousel_images) >= 2:
+                    # Upload photos as unpublished first
+                    photo_ids = []
+                    for img_url in carousel_images:
+                        upload_result = await social_service.facebook_upload_photo_unpublished(
+                            page_id, access_token, img_url
+                        )
+                        if upload_result.get("success"):
+                            photo_ids.append(upload_result.get("photo_id"))
+                    
+                    if len(photo_ids) >= 2:
+                        result = await social_service.facebook_create_carousel(
+                            page_id, access_token, photo_ids, text_content
+                        )
+                    else:
+                        return PublishResult(
+                            platform=platform,
+                            success=False,
+                            error="Failed to upload carousel images"
+                        )
+                        
+                elif post_type == "reel" and media_url:
+                    result = await social_service.facebook_upload_reel(
+                        page_id, access_token, media_url, text_content
+                    )
+                elif post_type == "story" and media_url:
+                    result = await social_service.facebook_upload_story(
+                        page_id, access_token, media_url, media_type == "video"
+                    )
+                elif media_type == "video" and media_url:
+                    result = await social_service.facebook_upload_video(
+                        page_id, access_token, media_url, text_content
+                    )
+                elif media_url:
+                    result = await social_service.facebook_post_photo(
+                        page_id, access_token, media_url, text_content
+                    )
+                else:
+                    # Text only post
+                    result = await social_service.facebook_post_to_page(
+                        page_id, access_token, text_content
+                    )
+                
+                if result.get("success"):
+                    return PublishResult(
+                        platform=platform,
+                        success=True,
+                        postId=result.get("post_id") or result.get("video_id") or result.get("id")
+                    )
+                else:
+                    return PublishResult(
+                        platform=platform,
+                        success=False,
+                        error=result.get("error", "Failed to post")
+                    )
+                    
+            except Exception as e:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error=str(e)
+                )
+                
+        elif platform == "linkedin":
+            from ...services.platforms.linkedin_service import linkedin_service
+            
+            access_token = credentials.get("accessToken", "")
+            person_id = credentials.get("personId") or credentials.get("profileId", "")
+            organization_id = credentials.get("organizationId")
+            post_to_page = credentials.get("postToPage", False)
+            is_organization = post_to_page and organization_id
+            
+            # Determine target URN
+            author_urn = organization_id if is_organization else person_id
+            
+            try:
+                # Check if carousel
+                if carousel_images and len(carousel_images) >= 2:
+                    # Download images and upload to LinkedIn
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        image_urns = []
+                        for img_url in carousel_images:
+                            # Download image
+                            img_response = await client.get(img_url)
+                            if img_response.status_code == 200:
+                                upload_result = await linkedin_service.upload_image(
+                                    access_token, author_urn, img_response.content, is_organization
+                                )
+                                if upload_result.get("success"):
+                                    image_urns.append(upload_result.get("asset"))
+                        
+                        if len(image_urns) >= 2:
+                            result = await linkedin_service.post_carousel(
+                                access_token, author_urn, text_content, image_urns,
+                                "PUBLIC", is_organization
+                            )
+                        else:
+                            return PublishResult(
+                                platform=platform,
+                                success=False,
+                                error="Failed to upload carousel images"
+                            )
+                            
+                elif media_url:
+                    # Download and upload media first
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        media_response = await client.get(media_url)
+                        if media_response.status_code == 200:
+                            if media_type == "video":
+                                # Upload video
+                                init_result = await linkedin_service.initialize_video_upload(
+                                    access_token, author_urn, len(media_response.content), is_organization
+                                )
+                                if init_result.get("success"):
+                                    upload_result = await linkedin_service.upload_video_binary(
+                                        init_result["upload_url"], media_response.content, access_token
+                                    )
+                                    if upload_result.get("success"):
+                                        await linkedin_service.finalize_video_upload(
+                                            access_token, init_result["asset"], [upload_result.get("etag", "")]
+                                        )
+                                        media_urn = init_result["asset"]
+                                    else:
+                                        media_urn = None
+                                else:
+                                    media_urn = None
+                            else:
+                                # Upload image
+                                upload_result = await linkedin_service.upload_image(
+                                    access_token, author_urn, media_response.content, is_organization
+                                )
+                                media_urn = upload_result.get("asset") if upload_result.get("success") else None
+                        else:
+                            media_urn = None
+                    
+                    result = await linkedin_service.post_to_linkedin(
+                        access_token, author_urn, text_content, "PUBLIC", media_urn, is_organization
+                    )
+                else:
+                    # Text only post
+                    result = await linkedin_service.post_to_linkedin(
+                        access_token, author_urn, text_content, "PUBLIC", None, is_organization
+                    )
+                
+                if result.get("success"):
+                    return PublishResult(
+                        platform=platform,
+                        success=True,
+                        postId=result.get("post_id")
+                    )
+                else:
+                    return PublishResult(
+                        platform=platform,
+                        success=False,
+                        error=result.get("error", "Failed to post")
+                    )
+                    
+            except Exception as e:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error=str(e)
+                )
+                
+        elif platform == "tiktok":
+            from ...services.platforms.tiktok_service import tiktok_service
+            
+            access_token = credentials.get("accessToken", "")
+            
+            if not generated_video_url:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error="TikTok requires a video"
+                )
+            
+            try:
+                # Use init_video_publish which pulls from URL
+                result = await tiktok_service.init_video_publish(
+                    access_token, text_content, generated_video_url, "PUBLIC_TO_EVERYONE"
+                )
+                
+                if result.get("success"):
+                    return PublishResult(
+                        platform=platform,
+                        success=True,
+                        postId=result.get("publish_id")
+                    )
+                else:
+                    return PublishResult(
+                        platform=platform,
+                        success=False,
+                        error=result.get("error", "Failed to post")
+                    )
+            except Exception as e:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error=str(e)
+                )
+                
+        elif platform == "youtube":
+            from ...services.platforms.youtube_service import youtube_service
+            
+            access_token = credentials.get("accessToken", "")
+            
+            if not generated_video_url:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error="YouTube requires a video"
+                )
+            
+            try:
+                title = text_content[:100] if text_content else post.get("topic", "")[:100]
+                description = text_content or post.get("topic", "")
+                
+                # Use upload_video_from_url with correct parameters
+                result = await youtube_service.upload_video_from_url(
+                    access_token, title, description, generated_video_url,
+                    None, "public", "22"
+                )
+                
+                if result.get("success"):
+                    return PublishResult(
+                        platform=platform,
+                        success=True,
+                        postId=result.get("video_id")
+                    )
+                else:
+                    return PublishResult(
+                        platform=platform,
+                        success=False,
+                        error=result.get("error", "Failed to upload")
+                    )
+            except Exception as e:
+                return PublishResult(
+                    platform=platform,
+                    success=False,
+                    error=str(e)
+                )
+        
+        else:
+            return PublishResult(
+                platform=platform,
+                success=False,
+                error=f"Unsupported platform: {platform}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error publishing to {platform}: {e}", exc_info=True)
+        return PublishResult(
+            platform=platform,
+            success=False,
+            error=str(e)
+        )
+
+
+async def update_post_status(
+    post_id: str,
+    status: str,  # 'published' or 'failed'
+    error_message: Optional[str] = None,
+    publish_results: Optional[List[PublishResult]] = None
+) -> None:
+    """
+    Update post status in database
+    
+    For successful publishes: delete the post
+    For failures: increment retry count, mark as failed after max retries
+    """
+    supabase = get_supabase_admin_client()
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if status == "published":
+        # Delete post after successful publishing (same as manual publish)
+        supabase.table("posts").delete().eq("id", post_id).execute()
+        logger.info(f"Deleted published post {post_id}")
+    else:
+        # Get current retry count
+        current = supabase.table("posts").select(
+            "content,publish_retry_count"
+        ).eq("id", post_id).single().execute()
+        
+        current_retry_count = current.data.get("publish_retry_count", 0) if current.data else 0
+        new_retry_count = current_retry_count + 1
+        
+        update_data = {
+            "updated_at": now,
+            "publish_retry_count": new_retry_count,
+            "publish_error": error_message,
+        }
+        
+        # Only mark as permanently failed after max retries
+        if new_retry_count >= CONFIG["MAX_RETRY_COUNT"]:
+            update_data["status"] = "failed"
+            logger.warning(f"Post {post_id} marked as failed after {new_retry_count} attempts")
+        # Otherwise keep as 'scheduled' for retry on next cron run
+        
+        # Store error details in content JSONB for UI display
+        if current.data and current.data.get("content"):
+            existing_content = current.data["content"]
+            existing_content["_publishLog"] = {
+                "lastAttempt": now,
+                "retryCount": new_retry_count,
+                "error": error_message,
+                "results": [r.model_dump() for r in publish_results] if publish_results else [],
+            }
+            update_data["content"] = existing_content
+        
+        supabase.table("posts").update(update_data).eq("id", post_id).execute()
+
+
+async def log_publish_activity(
+    post: Dict[str, Any],
+    status: str,
+    results: List[PublishResult]
+) -> None:
+    """Log publish activity to activity_logs table"""
+    supabase = get_supabase_admin_client()
+    success_count = sum(1 for r in results if r.success)
+    
+    supabase.table("activity_logs").insert({
+        "workspace_id": post.get("workspace_id"),
+        "user_id": post.get("created_by"),
+        "action": "post_published" if status == "published" else "post_publish_failed",
+        "resource_type": "post",
+        "resource_id": post.get("id"),
+        "details": {
+            "scheduled": True,
+            "scheduled_at": post.get("scheduled_at"),
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            "platforms": [r.model_dump() for r in results],
+            "success_count": success_count,
+            "total_platforms": len(results),
+        },
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }).execute()
+
+
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
+
+@router.get("/publish-scheduled", response_model=CronResponse)
+async def publish_scheduled_posts(
+    request: Request,
+    x_cron_secret: Optional[str] = Header(default=None)
+):
+    """
+    GET /api/v1/cron/publish-scheduled
+    
+    Process and publish all scheduled posts that are due.
+    
+    Called by external cron service (cron-job.org) every minute.
+    
+    Authentication:
+    - X-Cron-Secret header must match CRON_SECRET env variable
+    
+    Workflow:
+    1. Query posts where status='scheduled' AND scheduled_at <= NOW()
+    2. For each post, publish to all platforms
+    3. On success: delete post
+    4. On failure: increment retry count, mark as failed after 3 attempts
+    5. Log activity
+    
+    Returns:
+        CronResponse with processing summary
+    """
+    start_time = datetime.now(timezone.utc)
+    
+    try:
+        # 1. Verify authentication
+        if not verify_cron_auth(x_cron_secret):
+            logger.warning("Cron auth failed - invalid or missing X-Cron-Secret")
+            return CronResponse(
+                success=False,
+                error="Unauthorized - invalid or missing X-Cron-Secret",
+                processed=0,
+                published=0,
+                failed=0
+            )
+        
+        logger.info("Cron job started: publish-scheduled")
+        
+        # 2. Get Supabase client
+        supabase = get_supabase_admin_client()
+        now = datetime.now(timezone.utc).isoformat()
+        
+        # 3. Fetch scheduled posts that are due
+        query = supabase.table("posts").select("*").eq(
+            "status", "scheduled"
+        ).lte("scheduled_at", now)
+        
+        # Filter by retry count (less than max)
+        # Using raw filter since .lt on nullable column needs different handling
+        result = query.order(
+            "scheduled_at", desc=False
+        ).limit(CONFIG["MAX_POSTS_PER_RUN"]).execute()
+        
+        scheduled_posts = result.data or []
+        
+        # Filter out posts that have exceeded retry count
+        scheduled_posts = [
+            p for p in scheduled_posts 
+            if (p.get("publish_retry_count") or 0) < CONFIG["MAX_RETRY_COUNT"]
+        ]
+        
+        # 4. Handle no posts case
+        if not scheduled_posts:
+            logger.info("No scheduled posts to process")
+            return CronResponse(
+                success=True,
+                message="No scheduled posts to process",
+                processed=0,
+                published=0,
+                failed=0
+            )
+        
+        logger.info(f"Found {len(scheduled_posts)} scheduled posts to process")
+        
+        # 5. Process each post
+        processed_results: List[ProcessedPost] = []
+        
+        for post in scheduled_posts:
+            post_id = post.get("id")
+            topic = post.get("topic", "Untitled")
+            platforms = post.get("platforms", [])
+            workspace_id = post.get("workspace_id")
+            
+            logger.info(f"Processing post {post_id}: {topic}")
+            
+            try:
+                # Publish to all platforms
+                platform_results: List[PublishResult] = []
+                
+                for platform in platforms:
+                    try:
+                        # Get credentials for this platform
+                        credentials = await get_platform_credentials(workspace_id, platform)
+                        
+                        # Publish to platform
+                        result = await publish_to_platform(platform, post, credentials)
+                        platform_results.append(result)
+                        
+                    except Exception as e:
+                        logger.error(f"Error with {platform}: {e}")
+                        platform_results.append(PublishResult(
+                            platform=platform,
+                            success=False,
+                            error=str(e)
+                        ))
+                
+                # Determine overall status
+                success_count = sum(1 for r in platform_results if r.success)
+                total_platforms = len(platform_results)
+                
+                if success_count == total_platforms:
+                    post_status = "published"
+                elif success_count == 0:
+                    post_status = "failed"
+                else:
+                    post_status = "partial"
+                
+                # Update post in database
+                db_status = "published" if post_status == "partial" else post_status
+                error_msg = None
+                if post_status != "published":
+                    error_msg = "; ".join(
+                        f"{r.platform}: {r.error}" 
+                        for r in platform_results if not r.success
+                    )
+                
+                await update_post_status(post_id, db_status, error_msg, platform_results)
+                
+                # Log activity
+                await log_publish_activity(post, db_status, platform_results)
+                
+                processed_results.append(ProcessedPost(
+                    postId=post_id,
+                    topic=topic,
+                    status=post_status,
+                    platforms=platform_results
+                ))
+                
+                logger.info(f"Post {post_id} processed: {post_status} ({success_count}/{total_platforms})")
+                
+            except Exception as e:
+                logger.error(f"Error processing post {post_id}: {e}", exc_info=True)
+                
+                await update_post_status(post_id, "failed", str(e))
+                
+                processed_results.append(ProcessedPost(
+                    postId=post_id,
+                    topic=topic,
+                    status="failed",
+                    platforms=[PublishResult(
+                        platform="all",
+                        success=False,
+                        error=str(e)
+                    )]
+                ))
+        
+        # 6. Calculate summary
+        published = sum(1 for r in processed_results if r.status in ["published", "partial"])
+        failed = sum(1 for r in processed_results if r.status == "failed")
+        
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+        logger.info(f"Cron completed: {len(processed_results)} processed, {published} published, {failed} failed in {duration:.2f}s")
+        
+        return CronResponse(
+            success=True,
+            message=f"Processed {len(processed_results)} posts in {duration:.2f}s",
+            processed=len(processed_results),
+            published=published,
+            failed=failed,
+            results=processed_results
+        )
+        
+    except Exception as e:
+        logger.error(f"Cron job error: {e}", exc_info=True)
+        return CronResponse(
+            success=False,
+            error=str(e),
+            processed=0,
+            published=0,
+            failed=0
+        )
+
+
+@router.post("/publish-scheduled", response_model=CronResponse)
+async def publish_scheduled_posts_post(
+    request: Request,
+    x_cron_secret: Optional[str] = Header(default=None)
+):
+    """POST method for manual triggers - delegates to GET handler"""
+    return await publish_scheduled_posts(request, x_cron_secret)
+
+
+@router.get("/info/service")
+async def cron_api_info():
+    """Get Cron API service information"""
+    return {
+        "service": "Cron Jobs",
+        "version": "1.0.0",
+        "description": "Scheduled post publishing via external cron service",
+        "endpoints": {
+            "/publish-scheduled": {
+                "GET": "Process and publish scheduled posts",
+                "POST": "Same as GET (for manual triggers)",
+            }
+        },
+        "authentication": "X-Cron-Secret header",
+        "configuration": {
+            "max_retry_count": CONFIG["MAX_RETRY_COUNT"],
+            "max_posts_per_run": CONFIG["MAX_POSTS_PER_RUN"],
+            "timeout_seconds": CONFIG["REQUEST_TIMEOUT_SECONDS"],
+        },
+        "setup_instructions": {
+            "step_1": "Create account at https://cron-job.org (free)",
+            "step_2": "Add new cron job with your backend URL + /api/v1/cron/publish-scheduled",
+            "step_3": "Set method to GET",
+            "step_4": "Set schedule to 'Every 1 minute' (* * * * *)",
+            "step_5": "Add header: X-Cron-Secret: YOUR_CRON_SECRET",
+            "step_6": "Enable failure notifications",
+        },
+        "cron_secret_configured": bool(getattr(settings, 'CRON_SECRET', None)),
+    }

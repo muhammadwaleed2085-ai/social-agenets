@@ -128,6 +128,7 @@ from .api import (
     credentials_router,
     cloudinary_router,
     token_refresh_router,
+    cron_router,
     facebook_router,
     instagram_router,
     linkedin_router,
@@ -150,6 +151,7 @@ app.include_router(posts_router)
 app.include_router(credentials_router)
 app.include_router(cloudinary_router)
 app.include_router(token_refresh_router)
+app.include_router(cron_router)
 app.include_router(facebook_router)
 app.include_router(instagram_router)
 app.include_router(linkedin_router)

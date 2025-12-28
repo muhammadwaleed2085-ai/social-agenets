@@ -763,10 +763,14 @@ export interface PlatformApiInfo {
 // CANVA TYPES
 // =============================================================================
 
-/** Canva design */
+/** Canva design - matches backend CanvaDesign model */
 export interface CanvaDesign {
     id: string;
     title: string;
+    /** Thumbnail can be either a URL string or an object with url property */
+    thumbnail?: {
+        url?: string;
+    };
     thumbnail_url?: string;
     created_at?: string;
     updated_at?: string;
@@ -774,28 +778,69 @@ export interface CanvaDesign {
         edit_url?: string;
         view_url?: string;
     };
+    design_type?: string;
+}
+
+/** Create design request */
+export interface CanvaCreateDesignRequest {
+    assetUrl?: string;
+    designType?: string;
+    width?: number;
+    height?: number;
+    assetType?: 'image' | 'video';
 }
 
 /** Canva export request */
 export interface CanvaExportRequest {
     designId: string;
-    format?: 'png' | 'jpg' | 'pdf' | 'mp4';
-    pages?: number[];
+    workspaceId: string;
+    userId?: string;
+    format?: 'png' | 'jpg' | 'pdf' | 'mp4' | 'gif';
+    quality?: 'low' | 'medium' | 'high';
+    saveToLibrary?: boolean;
 }
 
 /** Canva export response */
 export interface CanvaExportResponse {
     success: boolean;
-    url?: string;
-    jobId?: string;
-    status?: string;
+    mediaItem?: MediaLibraryItem;
+    exportUrl?: string;
+    allExportUrls?: string[];
+    isMultiPage?: boolean;
+    pageCount?: number;
+    storageProvider?: 'cloudinary' | 'canva';
+    error?: string;
+}
+
+/** Canva connection status */
+export interface CanvaConnectionStatus {
+    connected: boolean;
+    expiresAt?: string;
+    isExpired?: boolean;
+    scopes?: string[];
+    lastUpdated?: string;
     error?: string;
 }
 
 /** Canva auth URL response */
 export interface CanvaAuthResponse {
-    url: string;
+    authUrl: string;
 }
+
+/** Canva export formats response */
+export interface CanvaExportFormatsResponse {
+    designId: string;
+    formats: Record<string, boolean>;
+    raw?: unknown;
+}
+
+/** Canva error response */
+export interface CanvaErrorResponse {
+    error: string;
+    code: string;
+    needsAuth?: boolean;
+}
+
 
 // =============================================================================
 // WEBHOOKS TYPES

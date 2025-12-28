@@ -3,6 +3,12 @@
  * 
  * API client for Canva design integration including OAuth,
  * design browsing, and export functionality.
+ * 
+ * Updated to match backend v2.0.0 with:
+ * - Secure OAuth with PKCE
+ * - Rate limiting
+ * - Retry logic
+ * - Permanent storage via Cloudinary
  */
 
 import { get, post, del } from '../client';
@@ -12,21 +18,41 @@ import type {
     CanvaExportRequest,
     CanvaExportResponse,
     CanvaAuthResponse,
+    CanvaConnectionStatus,
+    CanvaExportFormatsResponse,
+    CanvaCreateDesignRequest,
 } from '../types';
 
 /**
  * Get Canva OAuth authorization URL
  * 
- * Initiates the Canva OAuth flow by returning the authorization URL.
+ * Initiates the Canva OAuth flow with PKCE.
+ * The state and code_verifier are stored securely in the database.
  * 
- * @param workspaceId - Workspace ID to associate with the connection
+ * @param userId - User ID to associate with the connection
  * @returns Promise resolving to auth URL
  */
 export async function getAuthUrl(
-    workspaceId: string
+    userId: string
 ): Promise<CanvaAuthResponse> {
     return get<CanvaAuthResponse>(ENDPOINTS.canva.auth, {
-        params: { workspace_id: workspaceId },
+        params: { user_id: userId },
+    });
+}
+
+/**
+ * Check Canva connection status
+ * 
+ * Verifies whether Canva is connected and if the token is valid.
+ * 
+ * @param userId - User ID
+ * @returns Promise resolving to connection status
+ */
+export async function getConnectionStatus(
+    userId: string
+): Promise<CanvaConnectionStatus> {
+    return get<CanvaConnectionStatus>(ENDPOINTS.canva.authStatus, {
+        params: { user_id: userId },
     });
 }
 
@@ -35,97 +61,97 @@ export async function getAuthUrl(
  * 
  * Retrieves a list of designs from the connected Canva account.
  * 
- * @param workspaceId - Workspace ID
- * @param limit - Maximum number of designs to retrieve (default: 50)
+ * @param userId - User ID
  * @param continuation - Pagination token for next page
  * @returns Promise resolving to array of Canva designs
  */
 export async function getDesigns(
-    workspaceId: string,
-    limit: number = 50,
+    userId: string,
     continuation?: string
 ): Promise<{
-    designs: CanvaDesign[];
+    items: CanvaDesign[];
     continuation?: string;
 }> {
     return get(ENDPOINTS.canva.designs, {
         params: {
-            workspace_id: workspaceId,
-            limit,
+            user_id: userId,
             ...(continuation ? { continuation } : {}),
         },
     });
 }
 
 /**
- * Export a Canva design
+ * Create a new Canva design
  * 
- * Exports a design in the specified format and returns the download URL.
+ * Creates a design from a media library asset.
  * 
- * @param workspaceId - Workspace ID
- * @param request - Export request with design ID and format
- * @returns Promise resolving to export response with URL
+ * @param userId - User ID
+ * @param request - Design creation request
+ * @returns Promise resolving to created design
  */
-export async function exportDesign(
-    workspaceId: string,
-    request: CanvaExportRequest
-): Promise<CanvaExportResponse> {
-    return post<CanvaExportResponse>(ENDPOINTS.canva.export, request, {
-        params: { workspace_id: workspaceId },
+export async function createDesign(
+    userId: string,
+    request: CanvaCreateDesignRequest
+): Promise<{
+    success: boolean;
+    design: CanvaDesign;
+}> {
+    return post(`${ENDPOINTS.canva.designs}`, request, {
+        params: { user_id: userId },
     });
 }
 
 /**
- * Check export status
+ * Get available export formats for a design
  * 
- * Polls the status of an ongoing export job.
- * 
- * @param workspaceId - Workspace ID
- * @param jobId - Export job ID
- * @returns Promise resolving to export status
+ * @param userId - User ID
+ * @param designId - Canva design ID
+ * @returns Promise resolving to available formats
  */
-export async function getExportStatus(
-    workspaceId: string,
-    jobId: string
+export async function getExportFormats(
+    userId: string,
+    designId: string
+): Promise<CanvaExportFormatsResponse> {
+    return get<CanvaExportFormatsResponse>(ENDPOINTS.canva.exportFormats, {
+        params: { user_id: userId, designId },
+    });
+}
+
+/**
+ * Export a Canva design
+ * 
+ * Exports a design in the specified format. The backend handles:
+ * - Polling for export completion
+ * - Downloading from Canva
+ * - Uploading to Cloudinary for permanent storage
+ * - Optionally saving to media library
+ * 
+ * @param userId - User ID
+ * @param request - Export request with design ID and format
+ * @returns Promise resolving to export response with permanent URLs
+ */
+export async function exportDesign(
+    userId: string,
+    request: CanvaExportRequest
 ): Promise<CanvaExportResponse> {
-    return get<CanvaExportResponse>(`${ENDPOINTS.canva.export}/${jobId}`, {
-        params: { workspace_id: workspaceId },
+    return post<CanvaExportResponse>(ENDPOINTS.canva.export, request, {
+        params: { user_id: userId },
     });
 }
 
 /**
  * Disconnect Canva account
  * 
- * Removes the Canva connection from the workspace.
+ * Removes the Canva connection for the user.
  * 
- * @param workspaceId - Workspace ID
+ * @param userId - User ID
  * @returns Promise resolving when disconnection is complete
  */
 export async function disconnect(
-    workspaceId: string
+    userId: string
 ): Promise<{ success: boolean }> {
-    return del<{ success: boolean }>(ENDPOINTS.canva.disconnect, {
-        params: { workspace_id: workspaceId },
-    });
-}
-
-/**
- * Check if Canva is connected
- * 
- * Verifies whether a Canva account is connected to the workspace.
- * 
- * @param workspaceId - Workspace ID
- * @returns Promise resolving to connection status
- */
-export async function isConnected(
-    workspaceId: string
-): Promise<{
-    connected: boolean;
-    accountName?: string;
-    expiresAt?: string;
-}> {
-    return get(`${ENDPOINTS.canva.auth}/status`, {
-        params: { workspace_id: workspaceId },
+    return post<{ success: boolean }>(ENDPOINTS.canva.disconnect, {}, {
+        params: { user_id: userId },
     });
 }
 
@@ -134,62 +160,42 @@ export async function isConnected(
  * 
  * Retrieves detailed information about a specific design.
  * 
- * @param workspaceId - Workspace ID
+ * @param userId - User ID
  * @param designId - Canva design ID
  * @returns Promise resolving to design details
  */
 export async function getDesign(
-    workspaceId: string,
+    userId: string,
     designId: string
 ): Promise<CanvaDesign> {
     return get<CanvaDesign>(`${ENDPOINTS.canva.designs}/${designId}`, {
-        params: { workspace_id: workspaceId },
+        params: { user_id: userId },
     });
 }
 
+// ============================================================================
+// DEPRECATED - Kept for backward compatibility
+// The backend now handles polling internally
+// ============================================================================
+
 /**
- * Export design and wait for completion
- * 
- * Convenience function that initiates export and polls until complete.
- * 
- * @param workspaceId - Workspace ID
- * @param request - Export request
- * @param maxAttempts - Maximum polling attempts (default: 30)
- * @param intervalMs - Polling interval in milliseconds (default: 2000)
- * @returns Promise resolving to final export response with URL
+ * @deprecated Use getConnectionStatus instead
+ */
+export async function isConnected(
+    userId: string
+): Promise<CanvaConnectionStatus> {
+    return getConnectionStatus(userId);
+}
+
+/**
+ * @deprecated Backend now handles polling - use exportDesign directly
  */
 export async function exportDesignAndWait(
-    workspaceId: string,
+    userId: string,
     request: CanvaExportRequest,
-    maxAttempts: number = 30,
-    intervalMs: number = 2000
+    _maxAttempts: number = 30,
+    _intervalMs: number = 2000
 ): Promise<CanvaExportResponse> {
-    const initialResponse = await exportDesign(workspaceId, request);
-
-    if (initialResponse.url) {
-        return initialResponse;
-    }
-
-    if (!initialResponse.jobId) {
-        throw new Error('Export failed: No job ID returned');
-    }
-
-    let attempts = 0;
-    while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, intervalMs));
-
-        const status = await getExportStatus(workspaceId, initialResponse.jobId);
-
-        if (status.url) {
-            return status;
-        }
-
-        if (status.status === 'failed') {
-            throw new Error(status.error || 'Export failed');
-        }
-
-        attempts++;
-    }
-
-    throw new Error('Export timed out');
+    // Backend now handles polling internally
+    return exportDesign(userId, request);
 }
