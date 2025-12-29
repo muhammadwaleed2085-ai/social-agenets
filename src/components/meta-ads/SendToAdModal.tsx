@@ -116,11 +116,7 @@ export default function SendToAdModal({
   onSuccess,
   onSend,
 }: SendToAdModalProps) {
-  // Return null if no media
-  if (!media) {
-    return null;
-  }
-  // Form state
+  // Form state - hooks must always be called in the same order
   const [destination, setDestination] = useState<'library' | 'campaign'>('library');
   const [adName, setAdName] = useState('');
   const [headline, setHeadline] = useState('');
@@ -141,10 +137,10 @@ export default function SendToAdModal({
 
   // Load campaigns when destination is 'campaign'
   useEffect(() => {
-    if (destination === 'campaign' && campaigns.length === 0) {
+    if (media && destination === 'campaign' && campaigns.length === 0) {
       loadCampaigns();
     }
-  }, [destination, campaigns.length]);
+  }, [destination, campaigns.length, media]);
 
   // Filter ad sets when campaign changes
   useEffect(() => {
@@ -155,6 +151,11 @@ export default function SendToAdModal({
       setFilteredAdSets([]);
     }
   }, [selectedCampaignId, adSets]);
+
+  // Early return AFTER all hooks to ensure consistent hook count
+  if (!media) {
+    return null;
+  }
 
   const loadCampaigns = async () => {
     setIsLoadingCampaigns(true);

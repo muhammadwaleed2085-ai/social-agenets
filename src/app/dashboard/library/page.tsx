@@ -1,60 +1,358 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { MediaGallery } from '../media-studio/components/MediaGallery';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  FolderOpen,
+  Zap,
+  Upload,
+  CheckSquare,
+  Search,
+  X,
+  Heart,
+  Music,
+  RefreshCw,
+  Grid,
+  List,
+  Loader2,
+  Layers,
+  Megaphone,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMedia, MediaItem } from '@/contexts/MediaContext';
+import toast from 'react-hot-toast';
+
+type ViewMode = 'grid' | 'list';
+type FilterType = 'all' | 'images' | 'videos' | 'audio' | 'favorites';
 
 export default function LibraryPage() {
-  const { workspaceId } = useAuth();
+  const { workspaceId, user } = useAuth();
+
+  // State for toolbar controls
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<MediaItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Media context
+  const {
+    mediaItems,
+    loading: isLoading,
+    refreshMedia: fetchMediaFromDb,
+    setFilters,
+  } = useMedia();
+
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !workspaceId) return;
+
+    setIsUploading(true);
+
+    try {
+      for (const file of Array.from(files)) {
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        const isAudio = file.type.startsWith('audio/');
+
+        if (!isImage && !isVideo && !isAudio) {
+          throw new Error(`Invalid file type: ${file.name}`);
+        }
+
+        const maxSize = isVideo ? 2 * 1024 * 1024 * 1024 : isAudio ? 20 * 1024 * 1024 : 50 * 1024 * 1024;
+        if (file.size > maxSize) {
+          throw new Error(`File too large: ${file.name}`);
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'media-library');
+        formData.append('tags', `workspace:${workspaceId},uploaded`);
+
+        if (isVideo && file.size > 100 * 1024 * 1024) {
+          formData.append('chunked', 'true');
+        }
+
+        const uploadEndpoint = isImage
+          ? '/api/v1/cloudinary/upload/image'
+          : isVideo
+            ? '/api/v1/cloudinary/upload/video'
+            : '/api/v1/cloudinary/upload/audio';
+
+        const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:8000';
+
+        const uploadResponse = await fetch(`${pythonBackendUrl}${uploadEndpoint}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.detail || 'Failed to upload');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        const fileUrl = uploadResult.secure_url;
+
+        const mediaResponse = await fetch('/api/media-studio/library', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workspaceId,
+            mediaItem: {
+              type: isImage ? 'image' : isVideo ? 'video' : 'audio',
+              source: 'uploaded',
+              url: fileUrl,
+              prompt: file.name.replace(/\.[^/.]+$/, ''),
+              model: 'cloudinary',
+              config: {
+                originalFileName: file.name,
+                fileSize: file.size,
+                mimeType: file.type,
+                cloudinaryPublicId: uploadResult.public_id,
+              },
+            },
+          }),
+        });
+
+        if (!mediaResponse.ok) {
+          throw new Error('Failed to save to library');
+        }
+      }
+
+      await fetchMediaFromDb();
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      toast.success('Upload complete!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      toast.error(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Cancel selection mode
+  const cancelSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedItems([]);
+  };
+
+  // Total items count
+  const totalItems = mediaItems.length;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* Header with Toolbar */}
       <div className="relative overflow-hidden bg-gradient-to-br from-amber-900 via-orange-900 to-amber-900 dark:from-amber-950 dark:via-orange-950 dark:to-amber-950">
-        {/* Animated background elements - Enhanced */}
+        {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Large animated orbs */}
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/30 rounded-full blur-3xl animate-pulse" />
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-amber-500/30 rounded-full blur-3xl animate-pulse"
             style={{ animationDelay: '1s', animationDuration: '3s' }} />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-orange-600/20 rounded-full blur-3xl animate-pulse"
             style={{ animationDelay: '1.5s', animationDuration: '4s' }} />
-
-          {/* Additional floating orbs */}
           <div className="absolute top-10 right-1/4 w-32 h-32 bg-orange-400/25 rounded-full blur-2xl animate-pulse"
             style={{ animationDelay: '0.5s', animationDuration: '2.5s' }} />
           <div className="absolute bottom-10 left-1/3 w-40 h-40 bg-amber-400/25 rounded-full blur-2xl animate-pulse"
             style={{ animationDelay: '2s', animationDuration: '3.5s' }} />
         </div>
 
-        {/* Grid pattern overlay for depth */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
 
-        <div className="relative px-6 py-5">
-          <div className="flex items-center gap-4">
-            {/* Logo with enhanced glow */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-2xl blur-xl opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 rounded-2xl blur-2xl opacity-50 animate-pulse"
-                style={{ animationDelay: '0.5s' }} />
-              <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 p-3 rounded-2xl shadow-2xl transform transition-transform group-hover:scale-105">
-                <FolderOpen className="w-8 h-8 text-white" />
+        <div className="relative px-4 py-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Left: Logo and Title */}
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-xl blur-lg opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 rounded-xl blur-xl opacity-50 animate-pulse"
+                  style={{ animationDelay: '0.5s' }} />
+                <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 p-2 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
+                  <FolderOpen className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              <div>
+                <h1 className="text-base font-bold text-white flex items-center gap-2">
+                  Media Asserts
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[10px] px-1.5 py-0.5 shadow-lg hover:shadow-orange-500/50 transition-shadow">
+                    <Zap className="w-2.5 h-2.5 mr-0.5 animate-pulse" />
+                    All Media
+                  </Badge>
+                </h1>
+                <p className="text-white/80 text-[11px]">
+                  Browse and manage all your generated images and videos
+                </p>
               </div>
             </div>
 
-            <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                Media Library
-                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-xs shadow-lg hover:shadow-orange-500/50 transition-shadow">
-                  <Zap className="w-3 h-3 mr-1 animate-pulse" />
-                  All Media
-                </Badge>
-              </h1>
-              <p className="text-white/80 mt-1 text-sm">
-                Browse and manage all your generated images and videos
-              </p>
+            {/* Right: Toolbar Controls */}
+            <div className="flex flex-wrap gap-2 items-center">
+              {/* Upload Button */}
+              {workspaceId && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*,audio/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="media-upload-header"
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading || isSelectMode}
+                    size="sm"
+                    className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploading ? 'Uploading...' : 'Upload'}
+                  </Button>
+                </>
+              )}
+
+              {/* Select Mode */}
+              {workspaceId && totalItems > 1 && (
+                isSelectMode ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                      {selectedItems.length} selected
+                    </Badge>
+                    {selectedItems.length >= 2 && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            // Open carousel post modal - handled by MediaGallery
+                            const event = new CustomEvent('createCarouselPost', { detail: selectedItems });
+                            window.dispatchEvent(event);
+                          }}
+                          size="sm"
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                        >
+                          <Layers className="w-4 h-4 mr-1" />
+                          Carousel Post
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            // Open carousel ad modal - handled by MediaGallery
+                            const event = new CustomEvent('createCarouselAd', { detail: selectedItems });
+                            window.dispatchEvent(event);
+                          }}
+                          size="sm"
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                        >
+                          <Megaphone className="w-4 h-4 mr-1" />
+                          Carousel Ad
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      onClick={cancelSelectMode}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setIsSelectMode(true)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                  >
+                    <CheckSquare className="w-4 h-4 mr-1" />
+                    Select
+                  </Button>
+                )
+              )}
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+                <Input
+                  placeholder="Search by prompt..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-[180px] bg-white/10 border-white/30 text-white placeholder:text-white/60 focus:bg-white/20"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <X className="w-4 h-4 text-white/60 hover:text-white" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex gap-1 p-1 bg-white/10 rounded-lg">
+                {(['all', 'images', 'videos', 'audio', 'favorites'] as FilterType[]).map((type) => (
+                  <button
+                    key={type}
+                    className={`px-2.5 py-1 rounded-md text-xs capitalize transition-colors flex items-center gap-1 ${filterType === type
+                      ? 'bg-white text-amber-900 shadow-sm font-medium'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                      }`}
+                    onClick={() => setFilterType(type)}
+                  >
+                    {type === 'favorites' && <Heart className="w-3 h-3" />}
+                    {type === 'audio' && <Music className="w-3 h-3" />}
+                    {type}
+                  </button>
+                ))}
+              </div>
+
+              {/* Refresh */}
+              {workspaceId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchMediaFromDb}
+                  disabled={isLoading}
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              )}
+
+              {/* View Mode Toggle */}
+              <div className="flex gap-1 p-1 bg-white/10 rounded-lg">
+                <button
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid'
+                    ? 'bg-white text-amber-900 shadow-sm'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                    }`}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'list'
+                    ? 'bg-white text-amber-900 shadow-sm'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                    }`}
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -66,6 +364,14 @@ export default function LibraryPage() {
           images={[]}
           videos={[]}
           workspaceId={workspaceId || undefined}
+          hideHeader={true}
+          externalViewMode={viewMode}
+          externalFilterType={filterType}
+          externalSearchQuery={searchQuery}
+          externalIsSelectMode={isSelectMode}
+          externalSelectedItems={selectedItems}
+          onSelectedItemsChange={setSelectedItems}
+          onSelectModeChange={setIsSelectMode}
         />
       </div>
     </div>

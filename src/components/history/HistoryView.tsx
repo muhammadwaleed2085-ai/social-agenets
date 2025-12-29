@@ -63,28 +63,28 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
                     {/* Grid pattern overlay for depth */}
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
 
-                    <div className="relative px-6 py-5">
-                        <div className="flex items-center gap-4">
+                    <div className="relative px-4 py-3">
+                        <div className="flex items-center gap-3">
                             {/* Logo with enhanced glow */}
                             <div className="relative group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-2xl blur-xl opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 rounded-2xl blur-2xl opacity-50 animate-pulse"
+                                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-xl blur-lg opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 rounded-xl blur-xl opacity-50 animate-pulse"
                                     style={{ animationDelay: '0.5s' }} />
-                                <div className="relative bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 p-3 rounded-2xl shadow-2xl transform transition-transform group-hover:scale-105">
-                                    <BookCheck className="w-8 h-8 text-white" />
+                                <div className="relative bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 p-2 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
+                                    <BookCheck className="w-5 h-5 text-white" />
                                 </div>
                             </div>
 
                             <div>
-                                <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                                    Publishing Command Center
-                                    <Badge className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white border-0 text-xs shadow-lg hover:shadow-purple-500/50 transition-shadow">
-                                        <Zap className="w-3 h-3 mr-1 animate-pulse" />
-                                        Ready to Publish
+                                <h1 className="text-base font-bold text-white flex items-center gap-2">
+                                    Publishing Studio
+                                    <Badge className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white border-0 text-[10px] px-1.5 py-0.5 shadow-lg hover:shadow-purple-500/50 transition-shadow">
+                                        <Zap className="w-2.5 h-2.5 mr-0.5 animate-pulse" />
+                                        Ready
                                     </Badge>
                                 </h1>
-                                <p className="text-white/80 mt-1 text-sm">
-                                    Publish and schedule your finalized content across all platforms
+                                <p className="text-white/80 text-[11px]">
+                                    Publish and schedule your finalized content
                                 </p>
                             </div>
                         </div>
@@ -125,28 +125,28 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
                 {/* Grid pattern overlay for depth */}
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
 
-                <div className="relative px-6 py-5">
-                    <div className="flex items-center gap-4">
+                <div className="relative px-4 py-3">
+                    <div className="flex items-center gap-3">
                         {/* Logo with enhanced glow */}
                         <div className="relative group">
-                            <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-2xl blur-xl opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 rounded-2xl blur-2xl opacity-50 animate-pulse"
+                            <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-xl blur-lg opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 rounded-xl blur-xl opacity-50 animate-pulse"
                                 style={{ animationDelay: '0.5s' }} />
-                            <div className="relative bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 p-3 rounded-2xl shadow-2xl transform transition-transform group-hover:scale-105">
-                                <BookCheck className="w-8 h-8 text-white" />
+                            <div className="relative bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 p-2 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
+                                <BookCheck className="w-5 h-5 text-white" />
                             </div>
                         </div>
 
                         <div>
-                            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                                Publish Studio
-                                <Badge className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white border-0 text-xs shadow-lg hover:shadow-purple-500/50 transition-shadow">
-                                    <Zap className="w-3 h-3 mr-1 animate-pulse" />
-                                    Ready to Publish
+                            <h1 className="text-base font-bold text-white flex items-center gap-2">
+                                Publishing Studio
+                                <Badge className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white border-0 text-[10px] px-1.5 py-0.5 shadow-lg hover:shadow-purple-500/50 transition-shadow">
+                                    <Zap className="w-2.5 h-2.5 mr-0.5 animate-pulse" />
+                                    Ready
                                 </Badge>
                             </h1>
-                            <p className="text-white/80 mt-1 text-sm">
-                                Publish and schedule your finalized content across all platforms
+                            <p className="text-white/80 text-[11px]">
+                                Publish and schedule your finalized content
                             </p>
                         </div>
                     </div>

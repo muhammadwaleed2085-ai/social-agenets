@@ -7,11 +7,11 @@
   --font-serif: Georgia, serif;
   --font-manrope: var(--font-manrope), var(--font-sans);
 
-  /* Base Colors - LinkedIn Light */
-  --color-background: #f3f2ef;
-  /* LinkedIn warm gray background */
-  --color-foreground: #000000;
-  /* Black - LinkedIn text */
+  /* Base Colors - Predominantly White */
+  --color-background: #f5f5f7;
+  /* Clean off-white background */
+  --color-foreground: #1a1a1a;
+  /* Near-black text for contrast */
 
   /* Card & Surface */
   --color-card: #ffffff;
@@ -20,8 +20,8 @@
   /* Black text */
 
   /* Secondary Background */
-  --color-background-secondary: #e8e6e1;
-  /* Slightly darker warm gray */
+  --color-background-secondary: #ffffff;
+  /* Pure white secondary */
 
   --color-popover: #ffffff;
   --color-popover-foreground: #000000;
@@ -36,11 +36,11 @@
   /* LinkedIn accent blue */
   --color-secondary-foreground: #ffffff;
 
-  /* Muted: Chinese Silver & Taupe Gray */
-  --color-muted: #f3f2ef;
-  /* Light neutral background */
-  --color-muted-foreground: #86888a;
-  /* Taupe Gray for subtle text */
+  /* Muted: Clean White Tones */
+  --color-muted: #fafafa;
+  /* Very light neutral background */
+  --color-muted-foreground: #71717a;
+  /* Refined gray for subtle text */
 
   /* Accent: Success/Action color */
   --color-accent: #057642;
@@ -52,9 +52,9 @@
   /* LinkedIn red */
   --color-destructive-foreground: #ffffff;
 
-  /* Borders & Inputs - Chinese Silver */
-  --color-border: #caccce;
-  /* Chinese Silver for borders */
+  /* Borders & Inputs - Subtle Gray */
+  --color-border: #e5e5e5;
+  /* Subtle light gray borders */
   --color-input: #ffffff;
   --color-ring: #0077b5;
   /* LinkedIn blue focus ring */
@@ -70,6 +70,12 @@
   --radius-sm: 0.375rem;
   --radius-lg: 0.625rem;
   --radius-xl: 0.75rem;
+
+  /* Sidebar Colors - Light Mode (Dark Green Theme) */
+  --color-sidebar: #051a0d;
+  --color-sidebar-foreground: #d4ead8;
+  --color-sidebar-accent: rgba(16, 185, 129, 0.10);
+  --color-sidebar-border: rgba(16, 185, 129, 0.12);
 }
 
 .dark {
@@ -121,6 +127,12 @@
   /* Subtle borders */
   --color-input: #1a1a1a;
   --color-ring: #0a84c2;
+
+  /* Sidebar Colors - Dark Mode (Dark Green Theme) */
+  --color-sidebar: #031208;
+  --color-sidebar-foreground: #c4dac8;
+  --color-sidebar-accent: rgba(16, 185, 129, 0.12);
+  --color-sidebar-border: rgba(16, 185, 129, 0.10);
 }
 
 @layer base {

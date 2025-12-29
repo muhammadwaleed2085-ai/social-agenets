@@ -42,19 +42,57 @@ import { AudioWaveform } from '@/components/ui/audio-waveform';
 
 // MediaItem is now imported from MediaContext
 
+type ViewMode = 'grid' | 'list';
+type FilterType = 'all' | 'images' | 'videos' | 'audio' | 'favorites';
+
 interface MediaGalleryProps {
   images: GeneratedImage[];
   videos: GeneratedVideo[];
   workspaceId?: string;
+  hideHeader?: boolean;
+  externalViewMode?: ViewMode;
+  externalFilterType?: FilterType;
+  externalSearchQuery?: string;
+  externalIsSelectMode?: boolean;
+  externalSelectedItems?: MediaItem[];
+  onSelectedItemsChange?: (items: MediaItem[]) => void;
+  onSelectModeChange?: (mode: boolean) => void;
 }
 
-type ViewMode = 'grid' | 'list';
-type FilterType = 'all' | 'images' | 'videos' | 'audio' | 'favorites';
+export function MediaGallery({
+  images,
+  videos,
+  workspaceId,
+  hideHeader = false,
+  externalViewMode,
+  externalFilterType,
+  externalSearchQuery,
+  externalIsSelectMode,
+  externalSelectedItems,
+  onSelectedItemsChange,
+  onSelectModeChange,
+}: MediaGalleryProps) {
+  // Use external state if provided, otherwise use internal state
+  const [internalViewMode, setInternalViewMode] = useState<ViewMode>('grid');
+  const [internalFilterType, setInternalFilterType] = useState<FilterType>('all');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
+  const [internalIsSelectMode, setInternalIsSelectMode] = useState(false);
+  const [internalSelectedItems, setInternalSelectedItems] = useState<MediaItem[]>([]);
 
-export function MediaGallery({ images, videos, workspaceId }: MediaGalleryProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [filterType, setFilterType] = useState<FilterType>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Determine which state to use (external or internal)
+  const viewMode = externalViewMode ?? internalViewMode;
+  const filterType = externalFilterType ?? internalFilterType;
+  const searchQuery = externalSearchQuery ?? internalSearchQuery;
+  const isSelectMode = externalIsSelectMode ?? internalIsSelectMode;
+  const selectedItems = externalSelectedItems ?? internalSelectedItems;
+
+  // Use callbacks if provided, otherwise use internal setters
+  const setSelectedItems = onSelectedItemsChange ?? setInternalSelectedItems;
+  const setIsSelectMode = onSelectModeChange ?? setInternalIsSelectMode;
+  const setViewMode = externalViewMode !== undefined ? () => { } : setInternalViewMode;
+  const setFilterType = externalFilterType !== undefined ? () => { } : setInternalFilterType;
+  const setSearchQuery = externalSearchQuery !== undefined ? () => { } : setInternalSearchQuery;
+
   const [selectedItem, setSelectedItem] = useState<MediaItem | GeneratedImage | GeneratedVideo | null>(null);
   const [copied, setCopied] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
@@ -68,10 +106,6 @@ export function MediaGallery({ images, videos, workspaceId }: MediaGalleryProps)
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Multi-select state for carousel
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<MediaItem[]>([]);
 
   // Dashboard context for refreshing posts
   const { refreshData } = useDashboard();
@@ -97,6 +131,52 @@ export function MediaGallery({ images, videos, workspaceId }: MediaGalleryProps)
       search: searchQuery || undefined,
     });
   }, [filterType, searchQuery, setFilters]);
+
+  // Listen for custom events from external toolbar (for carousel creation)
+  useEffect(() => {
+    const handleCreateCarouselPostEvent = (e: CustomEvent<MediaItem[]>) => {
+      const items = e.detail;
+      if (items.length < 2 || !workspaceId) return;
+
+      const imageCount = items.filter(item => item.type === 'image').length;
+      const videoCount = items.filter(item => item.type === 'video').length;
+      const audioCount = items.filter(item => item.type === 'audio').length;
+      const carouselUrls = items.map(item => item.url);
+      const primaryType = items[0].type;
+
+      setMediaToSend({
+        type: primaryType,
+        url: carouselUrls[0],
+        prompt: `Carousel with ${imageCount > 0 ? `${imageCount} image${imageCount > 1 ? 's' : ''}` : ''}${imageCount > 0 && (videoCount > 0 || audioCount > 0) ? ' and ' : ''}${videoCount > 0 ? `${videoCount} video${videoCount > 1 ? 's' : ''}` : ''}${(imageCount > 0 || videoCount > 0) && audioCount > 0 ? ' and ' : ''}${audioCount > 0 ? `${audioCount} audio${audioCount > 1 ? 's' : ''}` : ''}`,
+        additionalUrls: carouselUrls.slice(1),
+      });
+      setSendModalOpen(true);
+    };
+
+    const handleCreateCarouselAdEvent = (e: CustomEvent<MediaItem[]>) => {
+      const items = e.detail;
+      if (items.length < 2 || !workspaceId) return;
+
+      const carouselUrls = items.map(item => item.url);
+      const primaryType = items[0].type;
+
+      setMediaToAd({
+        type: primaryType,
+        url: carouselUrls[0],
+        prompt: `Carousel ad with ${items.length} items`,
+        additionalUrls: carouselUrls.slice(1),
+      });
+      setAdModalOpen(true);
+    };
+
+    window.addEventListener('createCarouselPost', handleCreateCarouselPostEvent as EventListener);
+    window.addEventListener('createCarouselAd', handleCreateCarouselAdEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('createCarouselPost', handleCreateCarouselPostEvent as EventListener);
+      window.removeEventListener('createCarouselAd', handleCreateCarouselAdEvent as EventListener);
+    };
+  }, [workspaceId]);
 
   // Filter in-memory items based on search and type
   const filteredImages = images.filter(img =>
@@ -525,18 +605,16 @@ export function MediaGallery({ images, videos, workspaceId }: MediaGalleryProps)
 
   // Toggle item selection for carousel
   const toggleItemSelection = (item: MediaItem) => {
-    setSelectedItems(prev => {
-      const isSelected = prev.some(i => i.id === item.id);
-      if (isSelected) {
-        return prev.filter(i => i.id !== item.id);
-      } else {
-        // Max 10 items for carousel
-        if (prev.length >= 10) {
-          return prev;
-        }
-        return [...prev, item];
+    const isSelected = selectedItems.some((i: MediaItem) => i.id === item.id);
+    if (isSelected) {
+      setSelectedItems(selectedItems.filter((i: MediaItem) => i.id !== item.id));
+    } else {
+      // Max 10 items for carousel
+      if (selectedItems.length >= 10) {
+        return;
       }
-    });
+      setSelectedItems([...selectedItems, item]);
+    }
   };
 
   // Check if item is selected
@@ -666,155 +744,157 @@ export function MediaGallery({ images, videos, workspaceId }: MediaGalleryProps)
 
   return (
     <div className="space-y-6">
-      {/* Header & Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h2 className="ms-heading-lg">Media Library</h2>
-          <p className="ms-body-sm" style={{ color: 'var(--ms-text-secondary)' }}>
-            {totalItems} items in your library
-          </p>
-        </div>
+      {/* Header & Filters - only show if hideHeader is false */}
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold">Media Asserts</h2>
+            <p className="text-xs" style={{ color: 'var(--ms-text-secondary)' }}>
+              {totalItems} items
+            </p>
+          </div>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* Upload Button */}
-          {workspaceId && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,audio/*"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-                id="media-upload"
-              />
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading || isSelectMode}
-                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
-              >
-                {isUploading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                {isUploading ? 'Uploading...' : 'Upload'}
-              </Button>
-            </>
-          )}
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Upload Button */}
+            {workspaceId && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,audio/*"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="media-upload"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || isSelectMode}
+                  className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4 mr-2" />
+                  )}
+                  {isUploading ? 'Uploading...' : 'Upload'}
+                </Button>
+              </>
+            )}
 
-          {/* Select/Carousel Mode */}
-          {workspaceId && totalItems > 1 && (
-            isSelectMode ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
-                  {selectedItems.length} selected
-                </Badge>
+            {/* Select/Carousel Mode */}
+            {workspaceId && totalItems > 1 && (
+              isSelectMode ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
+                    {selectedItems.length} selected
+                  </Badge>
+                  <Button
+                    onClick={handleCreateCarousel}
+                    disabled={selectedItems.length < 2}
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                  >
+                    <Layers className="w-4 h-4 mr-1" />
+                    Carousel Post
+                  </Button>
+                  <Button
+                    onClick={handleCreateCarouselAd}
+                    disabled={selectedItems.length < 2}
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    <Megaphone className="w-4 h-4 mr-1" />
+                    Carousel Ad
+                  </Button>
+                  <Button
+                    onClick={cancelSelectMode}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
                 <Button
-                  onClick={handleCreateCarousel}
-                  disabled={selectedItems.length < 2}
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
-                >
-                  <Layers className="w-4 h-4 mr-1" />
-                  Carousel Post
-                </Button>
-                <Button
-                  onClick={handleCreateCarouselAd}
-                  disabled={selectedItems.length < 2}
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                >
-                  <Megaphone className="w-4 h-4 mr-1" />
-                  Carousel Ad
-                </Button>
-                <Button
-                  onClick={cancelSelectMode}
+                  onClick={() => setIsSelectMode(true)}
                   variant="outline"
                   size="sm"
                 >
-                  <X className="w-4 h-4 mr-1" />
-                  Cancel
+                  <CheckSquare className="w-4 h-4 mr-1" />
+                  Select
                 </Button>
-              </div>
-            ) : (
+              )
+            )}
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by prompt..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-[200px]"
+              />
+              {searchQuery && (
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter */}
+            <div className="flex gap-1 p-1 bg-muted rounded-lg">
+              {(['all', 'images', 'videos', 'audio', 'favorites'] as FilterType[]).map((type) => (
+                <button
+                  key={type}
+                  className={`px-3 py-1.5 rounded-md text-sm capitalize transition-colors flex items-center gap-1 ${filterType === type ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  onClick={() => setFilterType(type)}
+                >
+                  {type === 'favorites' && <Heart className="w-3 h-3" />}
+                  {type === 'audio' && <Music className="w-3 h-3" />}
+                  {type}
+                </button>
+              ))}
+            </div>
+
+            {/* Refresh */}
+            {workspaceId && (
               <Button
-                onClick={() => setIsSelectMode(true)}
                 variant="outline"
                 size="sm"
+                onClick={fetchMediaFromDb}
+                disabled={isLoading}
               >
-                <CheckSquare className="w-4 h-4 mr-1" />
-                Select
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
-            )
-          )}
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by prompt..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-[200px]"
-            />
-            {searchQuery && (
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                onClick={() => setSearchQuery('')}
-              >
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
             )}
-          </div>
 
-          {/* Filter */}
-          <div className="flex gap-1 p-1 bg-muted rounded-lg">
-            {(['all', 'images', 'videos', 'audio', 'favorites'] as FilterType[]).map((type) => (
+            {/* View Mode */}
+            <div className="flex gap-1 p-1 bg-muted rounded-lg">
               <button
-                key={type}
-                className={`px-3 py-1.5 rounded-md text-sm capitalize transition-colors flex items-center gap-1 ${filterType === type ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}
-                onClick={() => setFilterType(type)}
+                onClick={() => setViewMode('grid')}
               >
-                {type === 'favorites' && <Heart className="w-3 h-3" />}
-                {type === 'audio' && <Music className="w-3 h-3" />}
-                {type}
+                <Grid className="w-4 h-4" />
               </button>
-            ))}
-          </div>
-
-          {/* Refresh */}
-          {workspaceId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchMediaFromDb}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          )}
-
-          {/* View Mode */}
-          <div className="flex gap-1 p-1 bg-muted rounded-lg">
-            <button
-              className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid className="w-4 h-4" />
-            </button>
-            <button
-              className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              onClick={() => setViewMode('list')}
-            >
-              <List className="w-4 h-4" />
-            </button>
+              <button
+                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Upload Error */}
       {uploadError && (

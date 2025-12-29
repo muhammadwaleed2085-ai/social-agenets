@@ -16,26 +16,26 @@ export default function CanvaEditorPage() {
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
         </div>
 
-        <div className="relative px-6 py-5">
-          <div className="flex items-center gap-4">
+        <div className="relative px-4 py-3">
+          <div className="flex items-center gap-3">
             {/* Logo */}
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-2xl blur-lg opacity-75 animate-pulse" />
-              <div className="relative bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 p-3 rounded-2xl">
-                <Palette className="w-8 h-8 text-white" />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-xl blur-lg opacity-75 animate-pulse" />
+              <div className="relative bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 p-2 rounded-xl">
+                <Palette className="w-5 h-5 text-white" />
               </div>
             </div>
 
             <div>
-              <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-                Canva Editor
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 text-xs">
-                  <Zap className="w-3 h-3 mr-1" />
+              <h1 className="text-base font-bold text-white flex items-center gap-2">
+                Editing Studio
+                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 text-[10px] px-1.5 py-0.5">
+                  <Zap className="w-2.5 h-2.5 mr-0.5" />
                   Design Tools
                 </Badge>
               </h1>
-              <p className="text-white/70 mt-1">
-                Edit your media with Canva's powerful design tools
+              <p className="text-white/70 text-[11px]">
+                Edit your media with powerful design tools
               </p>
             </div>
           </div>
