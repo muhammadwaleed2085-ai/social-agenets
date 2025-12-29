@@ -239,9 +239,9 @@ async def get_members(
     try:
         workspace_id, _ = await get_user_workspace_role(user)
         
-        supabase = get_supabase_client()
+        supabase_admin = get_supabase_admin_client()
         
-        query = supabase.table("users").select(
+        query = supabase_admin.table("users").select(
             "id, email, full_name, role, avatar_url, created_at, workspace_id"
         ).eq("workspace_id", workspace_id).eq("is_active", True)
         
@@ -447,17 +447,25 @@ async def create_invite(
             raise HTTPException(status_code=401, detail="User ID not found in token")
         
         supabase = get_supabase_client()
+        supabase_admin = get_supabase_admin_client()
         
         # Check if workspace is full
         members_result = supabase.table("users").select(
             "id", count="exact"
         ).eq("workspace_id", workspace_id).eq("is_active", True).execute()
         
-        workspace_result = supabase.table("workspaces").select(
+        # Use admin client to bypass RLS for workspace query
+        workspace_result = supabase_admin.table("workspaces").select(
             "max_users"
-        ).eq("id", workspace_id).single().execute()
+        ).eq("id", workspace_id).maybe_single().execute()
         
-        max_members = workspace_result.data.get("max_users", 10) if workspace_result.data else 10
+        if not workspace_result.data:
+            raise HTTPException(
+                status_code=404,
+                detail="Workspace not found. Please ensure your workspace exists."
+            )
+        
+        max_members = workspace_result.data.get("max_users", 10)
         current_members = members_result.count or 0
         
         if current_members >= max_members:
@@ -509,7 +517,7 @@ async def create_invite(
             "created_at": datetime.now().isoformat()
         }
         
-        result = supabase.table("workspace_invites").insert(invite_data).execute()
+        result = supabase_admin.table("workspace_invites").insert(invite_data).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create invitation")
@@ -641,20 +649,21 @@ async def get_invite_by_token(token: str):
     """
     try:
         supabase = get_supabase_client()
+        supabase_admin = get_supabase_admin_client()
         
         result = supabase.table("workspace_invites").select(
             "id, role, email, expires_at, status, workspace_id"
-        ).eq("token", token).single().execute()
+        ).eq("token", token).maybe_single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Invitation not found")
         
         invite = result.data
         
-        # Get workspace name
-        workspace_result = supabase.table("workspaces").select(
+        # Get workspace name using admin client to bypass RLS
+        workspace_result = supabase_admin.table("workspaces").select(
             "name"
-        ).eq("id", invite["workspace_id"]).single().execute()
+        ).eq("id", invite["workspace_id"]).maybe_single().execute()
         
         invite["workspace_name"] = workspace_result.data.get("name") if workspace_result.data else "Unknown"
         
@@ -696,10 +705,10 @@ async def get_activity_log(
         workspace_id, role = await get_user_workspace_role(user)
         require_admin(role)
         
-        supabase = get_supabase_client()
+        supabase_admin = get_supabase_admin_client()
         
         # Build query
-        query = supabase.table("activity_logs").select(
+        query = supabase_admin.table("activity_logs").select(
             "*, users(email, full_name)", count="exact"
         ).eq("workspace_id", workspace_id)
         
