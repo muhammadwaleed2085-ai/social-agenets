@@ -30,14 +30,24 @@ class AudioService:
     @staticmethod
     def _get_ffmpeg_path() -> str:
         """Get FFmpeg executable path"""
+        import glob
+        
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
             return ffmpeg_path
+        
         common_paths = [
             r"C:\ffmpeg\bin\ffmpeg.exe",
             r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
             r"C:\Users\Public\ffmpeg\bin\ffmpeg.exe",
         ]
+        
+        # Add winget installation paths
+        winget_pattern = os.path.expandvars(
+            r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\ffmpeg-*\bin\ffmpeg.exe"
+        )
+        common_paths.extend(glob.glob(winget_pattern))
+        
         for path in common_paths:
             if os.path.exists(path):
                 return path
@@ -46,14 +56,24 @@ class AudioService:
     @staticmethod
     def _get_ffprobe_path() -> str:
         """Get FFprobe executable path"""
+        import glob
+        
         ffprobe_path = shutil.which("ffprobe")
         if ffprobe_path:
             return ffprobe_path
+        
         common_paths = [
             r"C:\ffmpeg\bin\ffprobe.exe",
             r"C:\Program Files\ffmpeg\bin\ffprobe.exe",
             r"C:\Users\Public\ffmpeg\bin\ffprobe.exe",
         ]
+        
+        # Add winget installation paths
+        winget_pattern = os.path.expandvars(
+            r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\ffmpeg-*\bin\ffprobe.exe"
+        )
+        common_paths.extend(glob.glob(winget_pattern))
+        
         for path in common_paths:
             if os.path.exists(path):
                 return path

@@ -4,7 +4,27 @@ Image, Video, and Audio processing utilities
 """
 
 from .image_service import ImageService
-from .video_service import VideoService
 from .audio_service import AudioService
 
-__all__ = ["ImageService", "VideoService", "AudioService"]
+# New modular video services (replaced old VideoService)
+from .video import (
+    VideoTrimmer,
+    SpeedService,
+    TextOverlayService,
+    TransitionService,
+    VideoResizer,
+    VideoMerger,
+)
+
+__all__ = [
+    "ImageService",
+    "AudioService",
+    # Video editing services
+    "VideoTrimmer",
+    "SpeedService",
+    "TextOverlayService",
+    "TransitionService",
+    "VideoResizer",
+    "VideoMerger",
+]
+

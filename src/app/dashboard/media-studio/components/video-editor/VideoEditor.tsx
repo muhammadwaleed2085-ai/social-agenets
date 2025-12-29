@@ -9,6 +9,9 @@ import {
   Merge,
   Crop,
   Image as ImageIcon,
+  Scissors,
+  Gauge,
+  Type,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -17,14 +20,19 @@ import { VideoMerger } from './VideoMerger';
 import { AudioMixer } from './AudioMixer';
 import { VideoResizer } from './VideoResizer';
 import { ImageResizer } from './ImageResizer';
+import { VideoTrimmer } from './VideoTrimmer';
+import { SpeedController } from './SpeedController';
+import { TextOverlay } from './TextOverlay';
 
 interface VideoEditorProps {
   onVideoProcessed?: (videoUrl: string) => void;
 }
 
+type TabValue = 'merge' | 'trim' | 'speed' | 'text' | 'audio' | 'resize' | 'image';
+
 export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
   const { workspaceId } = useAuth();
-  const [activeTab, setActiveTab] = useState<'merge' | 'audio' | 'resize' | 'image'>('merge');
+  const [activeTab, setActiveTab] = useState<TabValue>('merge');
   const [libraryVideos, setLibraryVideos] = useState<VideoItem[]>([]);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
 
@@ -73,23 +81,35 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
 
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'merge' | 'audio' | 'resize' | 'image')}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="merge" className="gap-2">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="merge" className="gap-1.5 text-xs sm:text-sm">
             <Merge className="w-4 h-4" />
-            Merge
+            <span className="hidden sm:inline">Merge</span>
           </TabsTrigger>
-          <TabsTrigger value="audio" className="gap-2">
+          <TabsTrigger value="trim" className="gap-1.5 text-xs sm:text-sm">
+            <Scissors className="w-4 h-4" />
+            <span className="hidden sm:inline">Trim</span>
+          </TabsTrigger>
+          <TabsTrigger value="speed" className="gap-1.5 text-xs sm:text-sm">
+            <Gauge className="w-4 h-4" />
+            <span className="hidden sm:inline">Speed</span>
+          </TabsTrigger>
+          <TabsTrigger value="text" className="gap-1.5 text-xs sm:text-sm">
+            <Type className="w-4 h-4" />
+            <span className="hidden sm:inline">Text</span>
+          </TabsTrigger>
+          <TabsTrigger value="audio" className="gap-1.5 text-xs sm:text-sm">
             <Music className="w-4 h-4" />
-            Audio
+            <span className="hidden sm:inline">Audio</span>
           </TabsTrigger>
-          <TabsTrigger value="resize" className="gap-2">
+          <TabsTrigger value="resize" className="gap-1.5 text-xs sm:text-sm">
             <Crop className="w-4 h-4" />
-            Video Resize
+            <span className="hidden sm:inline">Resize</span>
           </TabsTrigger>
-          <TabsTrigger value="image" className="gap-2">
+          <TabsTrigger value="image" className="gap-1.5 text-xs sm:text-sm">
             <ImageIcon className="w-4 h-4" />
-            Image Resize
+            <span className="hidden sm:inline">Image</span>
           </TabsTrigger>
         </TabsList>
 
@@ -98,6 +118,30 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
             libraryVideos={libraryVideos}
             isLoadingLibrary={isLoadingLibrary}
             onMergeComplete={handleProcessComplete}
+          />
+        </TabsContent>
+
+        <TabsContent value="trim" className="mt-4">
+          <VideoTrimmer
+            libraryVideos={libraryVideos}
+            isLoadingLibrary={isLoadingLibrary}
+            onTrimComplete={handleProcessComplete}
+          />
+        </TabsContent>
+
+        <TabsContent value="speed" className="mt-4">
+          <SpeedController
+            libraryVideos={libraryVideos}
+            isLoadingLibrary={isLoadingLibrary}
+            onSpeedComplete={handleProcessComplete}
+          />
+        </TabsContent>
+
+        <TabsContent value="text" className="mt-4">
+          <TextOverlay
+            libraryVideos={libraryVideos}
+            isLoadingLibrary={isLoadingLibrary}
+            onTextComplete={handleProcessComplete}
           />
         </TabsContent>
 
@@ -126,3 +170,4 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
     </div>
   );
 }
+

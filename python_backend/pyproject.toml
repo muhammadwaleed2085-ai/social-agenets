@@ -31,6 +31,7 @@ dependencies = [
     "supabase>=2.10.0",
     "tweepy>=4.14.0",
     "uvicorn[standard]>=0.30.0",
+    "imageio-ffmpeg>=0.6.0",
 ]
 
 [project.optional-dependencies]
