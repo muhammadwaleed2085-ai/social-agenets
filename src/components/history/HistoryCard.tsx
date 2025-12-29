@@ -18,12 +18,12 @@ interface PublishedCardProps {
 
 // Platform-specific max widths for realistic preview sizing
 const PLATFORM_MAX_WIDTHS: Record<Platform, string> = {
-    instagram: 'max-w-[280px]',
-    facebook: 'max-w-[320px]',
+    instagram: 'max-w-[300px]',
+    facebook: 'max-w-[300px]',
     twitter: 'max-w-[300px]',
-    linkedin: 'max-w-[320px]',
-    tiktok: 'max-w-[200px]',
-    youtube: 'max-w-[320px]',
+    linkedin: 'max-w-[300px]',
+    tiktok: 'max-w-[300px]',
+    youtube: 'max-w-[300px]',
 };
 
 const PublishedCard: React.FC<PublishedCardProps> = ({ post, onUpdatePost, onDeletePost, onPublishPost, connectedAccounts }) => {

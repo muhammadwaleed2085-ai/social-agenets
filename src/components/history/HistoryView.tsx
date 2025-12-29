@@ -131,18 +131,28 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
         return (
             <div className="flex flex-col h-full">
                 {/* Header - Library Style */}
-                <div className="bg-gradient-to-r from-orange-100 via-pink-50 to-rose-100 dark:from-orange-950/30 dark:via-pink-950/30 dark:to-rose-950/30 px-4 py-3 border-b border-border">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-gradient-to-br from-orange-400 to-pink-500 p-2.5 rounded-xl shadow-lg">
-                                <BookCheck className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-base font-semibold">Publishing Studio</h2>
-                                    <Badge className="bg-emerald-500 text-white border-0 text-[10px] px-2">0 items</Badge>
+                <div className="relative overflow-hidden bg-gradient-to-br from-amber-900 via-orange-900 to-amber-900 dark:from-amber-950 dark:via-orange-950 dark:to-amber-950">
+                    {/* Animated background elements */}
+                    <div className="absolute inset-0 overflow-hidden">
+                        <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/30 rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-amber-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                    </div>
+                    <div className="relative px-6 py-5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-xl blur-lg opacity-75" />
+                                    <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 p-3 rounded-xl shadow-xl">
+                                        <BookCheck className="w-6 h-6 text-white" />
+                                    </div>
                                 </div>
-                                <p className="text-xs text-muted-foreground">Publish and schedule your content</p>
+                                <div>
+                                    <h1 className="text-lg font-bold text-white flex items-center gap-3">
+                                        Publishing Studio
+                                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[11px] px-2 py-0.5 h-6 shadow-lg">0 items</Badge>
+                                    </h1>
+                                    <p className="text-white/80 text-[13px] mt-0.5">Publish and schedule your content</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -161,76 +171,109 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
     return (
         <div className="flex flex-col h-full">
             {/* Header & Filters - Library Style */}
-            <div className="bg-gradient-to-r from-orange-100 via-pink-50 to-rose-100 dark:from-orange-950/30 dark:via-pink-950/30 dark:to-rose-950/30 px-4 py-3 border-b border-border">
-                <div className="flex items-center justify-between gap-4">
-                    {/* Left - Title */}
-                    <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-orange-400 to-pink-500 p-2.5 rounded-xl shadow-lg">
-                            <BookCheck className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-base font-semibold">Publishing Studio</h2>
-                                <Badge className="bg-emerald-500 text-white border-0 text-[10px] px-2">{postsForPublishing.length} items</Badge>
+            <div className="relative overflow-hidden bg-gradient-to-br from-amber-900 via-orange-900 to-amber-900 dark:from-amber-950 dark:via-orange-950 dark:to-amber-950">
+                {/* Animated background elements */}
+                <div className="absolute inset-0 overflow-hidden">
+                    <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/30 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-amber-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                </div>
+                <div className="relative px-6 py-5">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                        {/* Left - Title */}
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-xl blur-lg opacity-75" />
+                                <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 p-3 rounded-xl shadow-xl">
+                                    <BookCheck className="w-6 h-6 text-white" />
+                                </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">Publish and schedule your content</p>
+                            <div>
+                                <h1 className="text-lg font-bold text-white flex items-center gap-3">
+                                    Publishing Studio
+                                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[11px] px-2 py-0.5 h-6 shadow-lg">{postsForPublishing.length} items</Badge>
+                                </h1>
+                                <p className="text-white/80 text-[13px] mt-0.5">Publish and schedule your content</p>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Right - Filter Buttons */}
-                    <div className="flex items-center gap-2">
-                        {/* Status Filters */}
-                        <FilterButton active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>
-                            All
-                        </FilterButton>
-                        <FilterButton active={statusFilter === 'ready_to_publish'} onClick={() => setStatusFilter('ready_to_publish')}>
-                            Ready
-                        </FilterButton>
-                        <FilterButton active={statusFilter === 'scheduled'} onClick={() => setStatusFilter('scheduled')}>
-                            Scheduled
-                        </FilterButton>
-                        <FilterButton active={statusFilter === 'published'} onClick={() => setStatusFilter('published')}>
-                            Published
-                        </FilterButton>
-
-                        <div className="w-px h-4 bg-border/50" />
-
-                        {/* Type Filters */}
-                        <FilterButton active={typeFilter === 'image'} onClick={() => setTypeFilter('image')}>
-                            <ImageIcon className="w-3 h-3" /> Images
-                        </FilterButton>
-                        <FilterButton active={typeFilter === 'video'} onClick={() => setTypeFilter('video')}>
-                            <Video className="w-3 h-3" /> Videos
-                        </FilterButton>
-                        <FilterButton active={typeFilter === 'carousel'} onClick={() => setTypeFilter('carousel')}>
-                            <Layers className="w-3 h-3" /> Carousel
-                        </FilterButton>
-
-                        <div className="w-px h-4 bg-border/50" />
-
-                        {/* Platform Filters */}
-                        {PLATFORMS.map(platform => {
-                            const Icon = platform.icon;
-                            return (
-                                <FilterButton
-                                    key={platform.id}
-                                    active={platformFilter === platform.id}
-                                    onClick={() => setPlatformFilter(platform.id as Platform)}
+                        {/* Right - Filter Buttons */}
+                        <div className="flex flex-wrap gap-2.5 items-center">
+                            {/* Filter Tabs */}
+                            <div className="flex gap-1.5 p-1.5 bg-white/10 rounded-xl">
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'all' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setStatusFilter('all')}
                                 >
-                                    <Icon className="w-3 h-3" />
-                                </FilterButton>
-                            );
-                        })}
+                                    All
+                                </button>
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'ready_to_publish' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setStatusFilter('ready_to_publish')}
+                                >
+                                    Ready
+                                </button>
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'scheduled' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setStatusFilter('scheduled')}
+                                >
+                                    Scheduled
+                                </button>
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'published' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setStatusFilter('published')}
+                                >
+                                    Published
+                                </button>
+                            </div>
 
-                        {/* Clear Filters */}
-                        {hasActiveFilters && (
-                            <button
-                                onClick={clearFilters}
-                                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
-                            >
-                                <X className="w-3 h-3" />
-                            </button>
-                        )}
+                            {/* Type Filters */}
+                            <div className="flex gap-1.5 p-1.5 bg-white/10 rounded-xl">
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-1.5 ${typeFilter === 'image' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setTypeFilter('image')}
+                                >
+                                    <ImageIcon className="w-3.5 h-3.5" /> Images
+                                </button>
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-1.5 ${typeFilter === 'video' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setTypeFilter('video')}
+                                >
+                                    <Video className="w-3.5 h-3.5" /> Videos
+                                </button>
+                                <button
+                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-1.5 ${typeFilter === 'carousel' ? 'bg-white text-amber-900 shadow-sm font-medium' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                    onClick={() => setTypeFilter('carousel')}
+                                >
+                                    <Layers className="w-3.5 h-3.5" /> Carousel
+                                </button>
+                            </div>
+
+                            {/* Platform Filters */}
+                            <div className="flex gap-1.5 p-1.5 bg-white/10 rounded-xl">
+                                {PLATFORMS.map(platform => {
+                                    const Icon = platform.icon;
+                                    return (
+                                        <button
+                                            key={platform.id}
+                                            className={`p-2 rounded-lg transition-colors ${platformFilter === platform.id ? 'bg-white text-amber-900 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                                            onClick={() => setPlatformFilter(platform.id as Platform)}
+                                        >
+                                            <Icon className="w-4 h-4" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Clear Filters */}
+                            {hasActiveFilters && (
+                                <button
+                                    onClick={clearFilters}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                                >
+                                    <X className="w-3.5 h-3.5" /> Clear
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
