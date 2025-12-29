@@ -529,23 +529,23 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Configuration Panel */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <div className="p-2 rounded-md" style={{ background: 'var(--ms-gradient-primary)' }}>
-              <Wand2 className="w-4 h-4 text-white" />
+      <Card className="border rounded-xl">
+        <CardHeader className="p-5 pb-4">
+          <CardTitle className="flex items-center gap-3 text-[15px]">
+            <div className="p-2.5 rounded-lg" style={{ background: 'var(--ms-gradient-primary)' }}>
+              <Wand2 className="w-[18px] h-[18px] text-white" />
             </div>
             <span>Generate Image</span>
           </CardTitle>
-          <CardDescription className="text-sm">
+          <CardDescription className="text-[13px] mt-1">
             {config.label} - {config.description}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Model Selection - Clean Tab Style */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">AI Model</label>
-            <div className="inline-flex h-auto p-1 bg-muted rounded-lg gap-1">
+        <CardContent className="p-5 pt-0 space-y-5">
+          {/* Model Selection - Enterprise Tab Style */}
+          <div className="space-y-2.5">
+            <label className="text-[13px] font-medium text-foreground">AI Model</label>
+            <div className="inline-flex h-auto p-1 bg-muted rounded-lg gap-1.5">
               {Object.values(MODEL_CONFIGS).map((cfg) => {
                 const isSelected = model === cfg.value;
                 const providerConfig = PROVIDERS[cfg.provider];
@@ -555,7 +555,7 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
                     key={cfg.value}
                     onClick={() => handleModelChange(cfg.value)}
                     className={`
-                      flex items-center gap-2 h-9 px-4 rounded-md text-sm transition-all duration-200
+                      flex items-center gap-2.5 h-10 px-4 rounded-lg text-[13px] transition-all duration-200
                       ${isSelected
                         ? 'bg-white dark:bg-white shadow-sm'
                         : 'hover:bg-white/50 dark:hover:bg-white/20'
@@ -563,7 +563,7 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
                     `}
                   >
                     <div
-                      className="w-5 h-5 rounded-md flex items-center justify-center"
+                      className="w-6 h-6 rounded-md flex items-center justify-center"
                       style={{
                         background: cfg.provider === 'openai'
                           ? 'var(--ms-gradient-primary)'
@@ -572,10 +572,10 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
                     >
                       <ProviderIcon
                         provider={cfg.provider}
-                        className="w-3 h-3 text-white"
+                        className="w-3.5 h-3.5 text-white"
                       />
                     </div>
-                    <span className={`font-medium text-sm ${isSelected
+                    <span className={`font-medium text-[13px] ${isSelected
                       ? 'text-gray-900 dark:text-gray-900'
                       : 'text-foreground'
                       }`}>
@@ -587,11 +587,11 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
             </div>
           </div>
 
-          {/* Prompt Input */}
-          <div className="space-y-2">
+          {/* Prompt Input - Enterprise Standard */}
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Prompt</label>
-              <span className="text-xs text-muted-foreground">
+              <label className="text-[13px] font-medium text-foreground">Prompt</label>
+              <span className="text-[11px] text-muted-foreground">
                 {prompt.length} / {config.maxPromptLength.toLocaleString()}
               </span>
             </div>
@@ -599,48 +599,48 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
               placeholder={`Describe the image you want to create... (max ${config.maxPromptLength.toLocaleString()} chars)`}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="min-h-[140px] resize-none text-sm"
+              className="min-h-[180px] resize-none text-[14px] leading-relaxed p-3.5 rounded-lg"
             />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleImprovePrompt}
                   disabled={isImprovingPrompt || !prompt.trim()}
-                  className="h-8 text-sm font-medium bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 border-0"
+                  className="h-9 px-4 text-[13px] font-medium bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 border-0 rounded-lg"
                 >
                   {isImprovingPrompt ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1.5" />
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                       Improving...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3 h-3 mr-1.5" />
+                      <Sparkles className="w-3.5 h-3.5 mr-2" />
                       Improve Prompt
                     </>
                   )}
                 </Button>
                 {improvementError && (
-                  <span className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
+                  <span className="text-[11px] text-red-500 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
                     {improvementError}
                   </span>
                 )}
               </div>
-              <Button variant="ghost" size="sm" className="h-8 px-3 text-sm" onClick={handleCopyPrompt}>
-                {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+              <Button variant="ghost" size="sm" className="h-9 px-3.5 text-[13px]" onClick={handleCopyPrompt}>
+                {copied ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             </div>
           </div>
 
-          {/* Platform Presets - Standard Platforms Only */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Quick Presets</label>
-            <div className="flex flex-wrap gap-1.5">
+          {/* Platform Presets - Enterprise Standard */}
+          <div className="space-y-2.5">
+            <label className="text-[13px] font-medium text-foreground">Quick Presets</label>
+            <div className="flex flex-wrap gap-2">
               {PLATFORM_PRESETS[provider].map((preset) => {
                 const isSelected = size === preset.size && model === preset.model;
                 return (
@@ -648,9 +648,9 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
                     key={preset.id}
                     onClick={() => applyPreset(preset.id)}
                     className={`
-                      h-8 px-3 rounded-md border text-sm font-medium transition-all duration-200
+                      h-9 px-4 rounded-lg border text-[13px] font-medium transition-all duration-200
                       ${isSelected
-                        ? 'border-[var(--ms-primary)] bg-[var(--ms-primary)] text-white'
+                        ? 'border-[var(--ms-primary)] bg-[var(--ms-primary)] text-white shadow-sm'
                         : 'border-[var(--ms-border)] hover:border-[var(--ms-primary)]/50 hover:bg-muted/50'
                       }
                     `}
@@ -662,14 +662,14 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
             </div>
           </div>
 
-          {/* Size & Quality */}
+          {/* Size & Quality - Enterprise Standard */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Size</label>
+            <div className="space-y-2.5">
+              <label className="text-[13px] font-medium text-foreground">Size</label>
               <select
                 value={size}
                 onChange={(e) => setSize(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                className="w-full h-10 px-3.5 rounded-lg border border-input bg-background text-[14px] cursor-pointer"
               >
                 {config.sizes.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -677,12 +677,12 @@ export function ImageGenerator({ onImageGenerated, recentImages }: ImageGenerato
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Quality</label>
+            <div className="space-y-2.5">
+              <label className="text-[13px] font-medium text-foreground">Quality</label>
               <select
                 value={quality}
                 onChange={(e) => setQuality(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                className="w-full h-10 px-3.5 rounded-lg border border-input bg-background text-[14px] cursor-pointer"
               >
                 {config.qualities.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>

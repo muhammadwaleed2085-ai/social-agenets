@@ -149,19 +149,19 @@ export function TextToSpeechForm({
     }, [text, selectedVoiceId, modelId, speed, stability, similarity, style, onAudioGenerated]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             {/* Voice Selection */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Voice</label>
+                    <label className="text-[13px] font-medium text-foreground">Voice</label>
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={onRefreshVoices}
                         disabled={isLoadingVoices}
-                        className="h-8 text-sm"
+                        className="h-9 px-3 text-[13px]"
                     >
-                        <RefreshCw className={`w-3 h-3 mr-1.5 ${isLoadingVoices ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoadingVoices ? 'animate-spin' : ''}`} />
                         Refresh
                     </Button>
                 </div>
@@ -170,17 +170,17 @@ export function TextToSpeechForm({
                     <button
                         type="button"
                         onClick={() => setShowVoiceDropdown(!showVoiceDropdown)}
-                        className="w-full flex items-center justify-between h-12 px-4 border rounded-md bg-background hover:bg-muted/50 transition-colors"
+                        className="w-full flex items-center justify-between h-14 px-4 border rounded-xl bg-background hover:bg-muted/50 transition-colors"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-purple-500 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-purple-500 flex items-center justify-center">
                                 <Volume2 className="w-5 h-5 text-white" />
                             </div>
                             <div className="text-left">
-                                <p className="font-medium">
+                                <p className="font-medium text-[14px]">
                                     {selectedVoice?.name || 'Select a voice'}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-[12px] text-muted-foreground">
                                     {selectedVoice?.category || 'Choose from available voices'}
                                 </p>
                             </div>
@@ -253,37 +253,37 @@ export function TextToSpeechForm({
                 </div>
             </div>
 
-            {/* Model Selection */}
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Model</label>
-                <div className="grid grid-cols-2 gap-2">
+            {/* Model Selection - Enterprise Standard */}
+            <div className="space-y-2.5">
+                <label className="text-[13px] font-medium text-foreground">Model</label>
+                <div className="grid grid-cols-2 gap-2.5">
                     {TTS_MODELS.map((model) => (
                         <button
                             key={model.id}
                             onClick={() => setModelId(model.id)}
-                            className={`h-auto p-3 rounded-md border text-left transition-all ${modelId === model.id
-                                ? 'border-teal-500 bg-teal-500/5'
+                            className={`h-auto p-4 rounded-xl border text-left transition-all ${modelId === model.id
+                                ? 'border-teal-500 bg-teal-500/5 shadow-sm'
                                 : 'border-border hover:border-teal-500/50'
                                 }`}
                         >
-                            <p className="text-sm font-medium">{model.name}</p>
-                            <p className="text-xs text-muted-foreground">{model.description}</p>
+                            <p className="text-[13px] font-medium">{model.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{model.description}</p>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Text Input */}
-            <div className="space-y-2">
+            {/* Text Input - Enterprise Standard */}
+            <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Text</label>
-                    <span className="text-xs text-muted-foreground">{text.length} / 5000</span>
+                    <label className="text-[13px] font-medium text-foreground">Text</label>
+                    <span className="text-[11px] text-muted-foreground">{text.length} / 5,000</span>
                 </div>
                 <Textarea
                     placeholder="Enter the text you want to convert to speech..."
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    className="min-h-[140px] resize-none text-sm"
+                    className="min-h-[180px] resize-none text-[14px] leading-relaxed p-3.5 rounded-lg"
                     maxLength={5000}
                 />
             </div>
@@ -384,17 +384,17 @@ export function TextToSpeechForm({
 
             {/* Error Display */}
             {error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-600 text-sm">
+                <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-red-500/10 text-red-600 text-[13px]">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     {error}
                 </div>
             )}
 
-            {/* Generate Button */}
+            {/* Generate Button - Enterprise Standard */}
             <Button
                 onClick={handleGenerate}
                 disabled={isGenerating || !text.trim() || !selectedVoiceId}
-                className="w-full h-11 text-sm font-medium bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700"
+                className="w-full h-12 text-[14px] font-medium bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-xl"
             >
                 {isGenerating ? (
                     <>

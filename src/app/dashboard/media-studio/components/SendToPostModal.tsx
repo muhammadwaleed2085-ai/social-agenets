@@ -288,17 +288,17 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
       {/* Modal */}
       <div className="relative bg-card border rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-6 py-5">
+        <div className="relative bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-6 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <Rocket className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Rocket className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">
+                <h2 className="text-xl font-semibold text-white">
                   {isCarousel ? 'Create Carousel Post' : 'Send to Publish'}
                 </h2>
-                <p className="text-sm text-white/70">
+                <p className="text-[13px] text-white/70 mt-0.5">
                   {step === 1
                     ? (isCarousel ? `Select platform for ${carouselCount} images` : 'Select a platform')
                     : step === 3
@@ -310,23 +310,23 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="p-2.5 hover:bg-white/20 rounded-xl transition-colors"
             >
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
 
           {/* Media Preview Mini */}
-          <div className="mt-4 flex items-center gap-3 p-3 bg-white/10 rounded-lg backdrop-blur-sm">
+          <div className="mt-4 flex items-center gap-4 p-4 bg-white/10 rounded-xl backdrop-blur-sm">
             {isCarousel ? (
               /* Carousel Preview - Show stacked images */
-              <div className="relative w-12 h-12">
+              <div className="relative w-14 h-14">
                 {[media.url, ...(media.additionalUrls || [])].slice(0, 3).map((url, idx) => (
                   <img
                     key={idx}
                     src={url}
                     alt={`Preview ${idx + 1}`}
-                    className="absolute w-10 h-10 rounded-lg object-cover border-2 border-white/30"
+                    className="absolute w-12 h-12 rounded-xl object-cover border-2 border-white/30"
                     style={{
                       left: idx * 4,
                       top: idx * 2,
@@ -339,31 +339,31 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
               <img
                 src={media.url}
                 alt="Preview"
-                className="w-12 h-12 rounded-lg object-cover"
+                className="w-14 h-14 rounded-xl object-cover"
               />
             ) : (
-              <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
-                <Video className="w-6 h-6 text-white" />
+              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+                <Video className="w-7 h-7 text-white" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
+              <p className="text-[14px] font-medium text-white truncate">
                 {isCarousel ? `${carouselCount} images selected` : `${media.prompt.substring(0, 50)}...`}
               </p>
-              <Badge variant="secondary" className="mt-1 bg-white/20 text-white text-xs">
+              <Badge variant="secondary" className="mt-1.5 bg-white/20 text-white text-[11px] h-6 px-2">
                 {isCarousel ? (
                   <>
-                    <Layers className="w-3 h-3 mr-1" />
+                    <Layers className="w-3.5 h-3.5 mr-1" />
                     carousel
                   </>
                 ) : media.type === 'image' ? (
                   <>
-                    <ImageIcon className="w-3 h-3 mr-1" />
+                    <ImageIcon className="w-3.5 h-3.5 mr-1" />
                     {media.type}
                   </>
                 ) : (
                   <>
-                    <Video className="w-3 h-3 mr-1" />
+                    <Video className="w-3.5 h-3.5 mr-1" />
                     {media.type}
                   </>
                 )}
@@ -376,8 +376,8 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
         <div className="p-6">
           {step === 1 ? (
             /* Step 1: Platform Selection */
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground mb-4">
+            <div className="space-y-4">
+              <p className="text-[13px] text-muted-foreground mb-4">
                 Where do you want to publish?
               </p>
               <div className="grid grid-cols-2 gap-3">
@@ -386,7 +386,7 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
                     key={platform.id}
                     onClick={() => handlePlatformSelect(platform.id)}
                     className={`
-                      relative p-4 rounded-xl border-2 transition-all duration-200
+                      relative p-5 rounded-xl border-2 transition-all duration-200
                       hover:border-primary hover:shadow-lg
                       ${selectedPlatform === platform.id
                         ? 'border-primary bg-primary/5'
@@ -394,10 +394,10 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
                       }
                     `}
                   >
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${platform.color} flex items-center justify-center text-white mb-2`}>
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${platform.color} flex items-center justify-center text-white mb-3`}>
                       {platform.icon}
                     </div>
-                    <span className="font-medium text-sm">{platform.name}</span>
+                    <span className="font-medium text-[13px]">{platform.name}</span>
                     <ArrowRight className="w-4 h-4 absolute top-4 right-4 text-muted-foreground" />
                   </button>
                 ))}
@@ -578,23 +578,23 @@ export function SendToPostModal({ isOpen, onClose, media, onSend }: SendToPostMo
             <Button
               variant="outline"
               onClick={handleClose}
-              className="flex-1"
+              className="flex-1 h-11 text-[14px] rounded-xl"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSend}
               disabled={!selectedPlatform || !selectedPostType || isSending}
-              className="flex-1 text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+              className="flex-1 h-11 text-[14px] text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 rounded-xl"
             >
               {isSending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-[18px] h-[18px] mr-2 animate-spin" />
                   Sending...
                 </>
               ) : (
                 <>
-                  <Rocket className="w-4 h-4 mr-2" />
+                  <Rocket className="w-[18px] h-[18px] mr-2" />
                   Send to Publish
                 </>
               )}

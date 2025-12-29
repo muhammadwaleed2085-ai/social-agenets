@@ -1011,9 +1011,9 @@ export function MediaGallery({
 
                 {/* Selection Checkbox (Select Mode) */}
                 {isSelectMode && (
-                  <div className="absolute top-2 left-2 z-10">
+                  <div className="absolute top-2.5 left-2.5 z-10">
                     <div className={`
-                    w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200
+                    w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200
                     ${selected
                         ? 'bg-[var(--ms-primary)] border-[var(--ms-primary)] text-white scale-110'
                         : 'bg-white/90 border-[var(--ms-border)] hover:border-[var(--ms-primary)] backdrop-blur-sm'
@@ -1023,7 +1023,7 @@ export function MediaGallery({
                     </div>
                     {selected && (
                       <div
-                        className="absolute -bottom-5 left-0 text-white text-xs px-1.5 py-0.5 rounded-md font-medium"
+                        className="absolute -bottom-6 left-0 text-white text-[11px] px-2 py-0.5 rounded-md font-medium"
                         style={{ background: 'var(--ms-primary)' }}
                       >
                         {selectedItems.findIndex(i => i.id === item.id) + 1}
@@ -1034,30 +1034,30 @@ export function MediaGallery({
 
                 {/* Smooth Hover Overlay with Staggered Actions */}
                 {!isSelectMode && (
-                  <div className="ms-gallery-overlay absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center justify-end p-3">
-                    <div className="ms-gallery-actions flex gap-1.5">
+                  <div className="ms-gallery-overlay absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center justify-end p-3.5">
+                    <div className="ms-gallery-actions flex gap-2">
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="h-8 w-8 p-0 rounded-lg bg-gray-700/90 hover:bg-gray-600 text-white backdrop-blur-sm transition-all duration-200 hover:scale-110"
+                        className="h-9 w-9 p-0 rounded-lg bg-gray-700/90 hover:bg-gray-600 text-white backdrop-blur-sm transition-all duration-200 hover:scale-110"
                         onClick={(e) => { e.stopPropagation(); handleDownload(item.url, item.type); }}
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="h-8 w-8 p-0 rounded-lg bg-gray-700/90 hover:bg-gray-600 text-white backdrop-blur-sm transition-all duration-200 hover:scale-110"
+                        className="h-9 w-9 p-0 rounded-lg bg-gray-700/90 hover:bg-gray-600 text-white backdrop-blur-sm transition-all duration-200 hover:scale-110"
                         onClick={(e) => { e.stopPropagation(); copyPrompt(item.prompt); }}
                       >
-                        {copied ? <Check className="w-3.5 h-3.5 text-[var(--ms-success)]" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copied ? <Check className="w-4 h-4 text-[var(--ms-success)]" /> : <Copy className="w-4 h-4" />}
                       </Button>
                       {workspaceId && (
                         <>
                           <Button
                             size="sm"
                             variant="secondary"
-                            className="h-8 w-8 p-0 rounded-lg bg-gray-700/90 hover:bg-gray-600 text-white backdrop-blur-sm transition-all duration-200 hover:scale-110"
+                            className="h-9 w-9 p-0 rounded-lg bg-gray-700/90 hover:bg-gray-600 text-white backdrop-blur-sm transition-all duration-200 hover:scale-110"
                             onClick={(e) => { e.stopPropagation(); handleToggleFavorite(item); }}
                           >
                             <Heart className={`w-3.5 h-3.5 transition-colors ${item.is_favorite ? 'fill-red-500 text-red-500' : ''}`} />

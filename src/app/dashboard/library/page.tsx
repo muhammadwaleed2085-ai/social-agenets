@@ -167,35 +167,35 @@ export default function LibraryPage() {
 
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
 
-        <div className="relative px-4 py-3">
+        <div className="relative px-6 py-5">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             {/* Left: Logo and Title */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="relative group">
                 <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-xl blur-lg opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
                 <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400 rounded-xl blur-xl opacity-50 animate-pulse"
                   style={{ animationDelay: '0.5s' }} />
-                <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 p-2 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
-                  <FolderOpen className="w-5 h-5 text-white" />
+                <div className="relative bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 p-3 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
+                  <FolderOpen className="w-6 h-6 text-white" />
                 </div>
               </div>
 
               <div>
-                <h1 className="text-base font-bold text-white flex items-center gap-2">
-                  Media Asserts
-                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[10px] px-1.5 py-0.5 shadow-lg hover:shadow-orange-500/50 transition-shadow">
-                    <Zap className="w-2.5 h-2.5 mr-0.5 animate-pulse" />
+                <h1 className="text-lg font-bold text-white flex items-center gap-3">
+                  Media Assets
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[11px] px-2 py-0.5 h-6 shadow-lg hover:shadow-orange-500/50 transition-shadow">
+                    <Zap className="w-3 h-3 mr-1 animate-pulse" />
                     All Media
                   </Badge>
                 </h1>
-                <p className="text-white/80 text-[11px]">
+                <p className="text-white/80 text-[13px] mt-0.5">
                   Browse and manage all your generated images and videos
                 </p>
               </div>
             </div>
 
             {/* Right: Toolbar Controls */}
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-wrap gap-2.5 items-center">
               {/* Upload Button */}
               {workspaceId && (
                 <>
@@ -212,7 +212,7 @@ export default function LibraryPage() {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading || isSelectMode}
                     size="sm"
-                    className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
+                    className="h-9 px-4 text-[13px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-lg"
                   >
                     {isUploading ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -227,8 +227,8 @@ export default function LibraryPage() {
               {/* Select Mode */}
               {workspaceId && totalItems > 1 && (
                 isSelectMode ? (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                  <div className="flex items-center gap-2.5">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-0 h-6 px-2.5 text-[11px]">
                       {selectedItems.length} selected
                     </Badge>
                     {selectedItems.length >= 2 && (
@@ -240,9 +240,9 @@ export default function LibraryPage() {
                             window.dispatchEvent(event);
                           }}
                           size="sm"
-                          className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                          className="h-9 px-4 text-[13px] bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-lg"
                         >
-                          <Layers className="w-4 h-4 mr-1" />
+                          <Layers className="w-4 h-4 mr-1.5" />
                           Carousel Post
                         </Button>
                         <Button
@@ -252,9 +252,9 @@ export default function LibraryPage() {
                             window.dispatchEvent(event);
                           }}
                           size="sm"
-                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                          className="h-9 px-4 text-[13px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg"
                         >
-                          <Megaphone className="w-4 h-4 mr-1" />
+                          <Megaphone className="w-4 h-4 mr-1.5" />
                           Carousel Ad
                         </Button>
                       </>
@@ -263,9 +263,9 @@ export default function LibraryPage() {
                       onClick={cancelSelectMode}
                       variant="outline"
                       size="sm"
-                      className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                      className="h-9 px-3.5 text-[13px] bg-white/10 border-white/30 text-white hover:bg-white/20 rounded-lg"
                     >
-                      <X className="w-4 h-4 mr-1" />
+                      <X className="w-4 h-4 mr-1.5" />
                       Cancel
                     </Button>
                   </div>
@@ -274,9 +274,9 @@ export default function LibraryPage() {
                     onClick={() => setIsSelectMode(true)}
                     variant="outline"
                     size="sm"
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                    className="h-9 px-3.5 text-[13px] bg-white/10 border-white/30 text-white hover:bg-white/20 rounded-lg"
                   >
-                    <CheckSquare className="w-4 h-4 mr-1" />
+                    <CheckSquare className="w-4 h-4 mr-1.5" />
                     Select
                   </Button>
                 )
@@ -284,16 +284,16 @@ export default function LibraryPage() {
 
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
                 <Input
                   placeholder="Search by prompt..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-[180px] bg-white/10 border-white/30 text-white placeholder:text-white/60 focus:bg-white/20"
+                  className="pl-10 h-10 w-[200px] text-[13px] bg-white/10 border-white/30 text-white placeholder:text-white/60 focus:bg-white/20 rounded-lg"
                 />
                 {searchQuery && (
                   <button
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
                     onClick={() => setSearchQuery('')}
                   >
                     <X className="w-4 h-4 text-white/60 hover:text-white" />
@@ -302,18 +302,18 @@ export default function LibraryPage() {
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex gap-1 p-1 bg-white/10 rounded-lg">
+              <div className="flex gap-1.5 p-1.5 bg-white/10 rounded-xl">
                 {(['all', 'images', 'videos', 'audio', 'favorites'] as FilterType[]).map((type) => (
                   <button
                     key={type}
-                    className={`px-2.5 py-1 rounded-md text-xs capitalize transition-colors flex items-center gap-1 ${filterType === type
+                    className={`px-3 py-1.5 rounded-lg text-[12px] capitalize transition-colors flex items-center gap-1.5 ${filterType === type
                       ? 'bg-white text-amber-900 shadow-sm font-medium'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                       }`}
                     onClick={() => setFilterType(type)}
                   >
-                    {type === 'favorites' && <Heart className="w-3 h-3" />}
-                    {type === 'audio' && <Music className="w-3 h-3" />}
+                    {type === 'favorites' && <Heart className="w-3.5 h-3.5" />}
+                    {type === 'audio' && <Music className="w-3.5 h-3.5" />}
                     {type}
                   </button>
                 ))}
@@ -326,16 +326,16 @@ export default function LibraryPage() {
                   size="sm"
                   onClick={fetchMediaFromDb}
                   disabled={isLoading}
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                  className="h-9 w-9 p-0 bg-white/10 border-white/30 text-white hover:bg-white/20 rounded-lg"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               )}
 
               {/* View Mode Toggle */}
-              <div className="flex gap-1 p-1 bg-white/10 rounded-lg">
+              <div className="flex gap-1.5 p-1 bg-white/10 rounded-xl">
                 <button
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid'
+                  className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
                     ? 'bg-white text-amber-900 shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
                     }`}
@@ -344,7 +344,7 @@ export default function LibraryPage() {
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
-                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'list'
+                  className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
                     ? 'bg-white text-amber-900 shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
                     }`}

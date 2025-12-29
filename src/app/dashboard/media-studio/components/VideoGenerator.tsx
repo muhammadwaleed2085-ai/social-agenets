@@ -654,27 +654,27 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Configuration Panel */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <div className="p-2 rounded-md" style={{ background: 'var(--ms-gradient-primary)' }}>
-              <Video className="w-4 h-4 text-white" />
+      <Card className="border rounded-xl">
+        <CardHeader className="p-5 pb-4">
+          <CardTitle className="flex items-center gap-3 text-[15px]">
+            <div className="p-2.5 rounded-lg" style={{ background: 'var(--ms-gradient-primary)' }}>
+              <Video className="w-[18px] h-[18px] text-white" />
             </div>
             <span>Generate Video</span>
           </CardTitle>
-          <CardDescription className="text-sm">
+          <CardDescription className="text-[13px] mt-1">
             OpenAI Sora - Text-to-Video, Image-to-Video, Video Remix
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Generation Mode - Compact */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Generation Mode</label>
-            <div className="grid grid-cols-3 gap-1.5">
+        <CardContent className="p-5 pt-0 space-y-5">
+          {/* Generation Mode - Enterprise Standard */}
+          <div className="space-y-2.5">
+            <label className="text-[13px] font-medium text-foreground">Generation Mode</label>
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setMode('text')}
                 className={`
-                  h-16 rounded-md border text-center transition-all duration-200 group
+                  h-[72px] rounded-lg border text-center transition-all duration-200 group
                   ${mode === 'text'
                     ? 'border-transparent shadow-sm'
                     : 'border-[var(--ms-border)] hover:border-[var(--ms-primary)] bg-card'
@@ -685,13 +685,13 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
                   boxShadow: '0 2px 6px rgba(13, 148, 136, 0.2)'
                 } : undefined}
               >
-                <Clapperboard className={`w-4 h-4 mx-auto mb-1 ${mode === 'text' ? 'text-white' : 'text-[var(--ms-primary)]'}`} />
-                <div className={`text-sm font-medium ${mode === 'text' ? 'text-white' : 'text-foreground'}`}>Text</div>
+                <Clapperboard className={`w-[18px] h-[18px] mx-auto mb-1 ${mode === 'text' ? 'text-white' : 'text-[var(--ms-primary)]'}`} />
+                <div className={`text-[13px] font-medium ${mode === 'text' ? 'text-white' : 'text-foreground'}`}>Text</div>
               </button>
               <button
                 onClick={() => setMode('image')}
                 className={`
-                  h-16 rounded-md border text-center transition-all duration-200 group
+                  h-[72px] rounded-lg border text-center transition-all duration-200 group
                   ${mode === 'image'
                     ? 'border-transparent shadow-sm'
                     : 'border-[var(--ms-border)] hover:border-[var(--ms-accent)] bg-card'
@@ -702,13 +702,13 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
                   boxShadow: '0 2px 6px rgba(245, 158, 11, 0.2)'
                 } : undefined}
               >
-                <Film className={`w-4 h-4 mx-auto mb-1 ${mode === 'image' ? 'text-white' : 'text-[var(--ms-accent)]'}`} />
-                <div className={`text-sm font-medium ${mode === 'image' ? 'text-[var(--ms-accent-foreground)]' : 'text-foreground'}`}>Image</div>
+                <Film className={`w-[18px] h-[18px] mx-auto mb-1 ${mode === 'image' ? 'text-white' : 'text-[var(--ms-accent)]'}`} />
+                <div className={`text-[13px] font-medium ${mode === 'image' ? 'text-[var(--ms-accent-foreground)]' : 'text-foreground'}`}>Image</div>
               </button>
               <button
                 onClick={() => setMode('remix')}
                 className={`
-                  h-16 rounded-md border text-center transition-all duration-200 group
+                  h-[72px] rounded-lg border text-center transition-all duration-200 group
                   ${mode === 'remix'
                     ? 'border-transparent shadow-sm'
                     : 'border-[var(--ms-border)] hover:border-[var(--ms-secondary)] bg-card'
@@ -719,8 +719,8 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
                   boxShadow: '0 2px 6px rgba(100, 116, 139, 0.2)'
                 } : undefined}
               >
-                <Wand2 className={`w-4 h-4 mx-auto mb-1 ${mode === 'remix' ? 'text-white' : 'text-[var(--ms-secondary)]'}`} />
-                <div className={`text-sm font-medium ${mode === 'remix' ? 'text-white' : 'text-foreground'}`}>Remix</div>
+                <Wand2 className={`w-[18px] h-[18px] mx-auto mb-1 ${mode === 'remix' ? 'text-white' : 'text-[var(--ms-secondary)]'}`} />
+                <div className={`text-[13px] font-medium ${mode === 'remix' ? 'text-white' : 'text-foreground'}`}>Remix</div>
               </button>
             </div>
           </div>
@@ -999,32 +999,32 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
                 }
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[100px] resize-none"
+                className="min-h-[160px] resize-none text-[14px] leading-relaxed p-3.5 rounded-lg"
               />
-              <div className="flex items-center justify-start gap-2 mt-2">
+              <div className="flex items-center justify-start gap-2.5 mt-2.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleImprovePrompt}
                   disabled={isImprovingPrompt || !prompt.trim()}
-                  className="h-7 text-xs font-medium bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 border-0"
+                  className="h-9 px-4 text-[13px] font-medium bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 border-0 rounded-lg"
                 >
                   {isImprovingPrompt ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1.5" />
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                       Improving...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3 h-3 mr-1.5" />
+                      <Sparkles className="w-3.5 h-3.5 mr-2" />
                       Improve Prompt
                     </>
                   )}
                 </Button>
                 {improvementError && (
-                  <span className="text-xs text-red-500 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
+                  <span className="text-[11px] text-red-500 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
                     {improvementError}
                   </span>
                 )}
@@ -1032,10 +1032,10 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
             </div>
           )}
 
-          {/* Platform Presets */}
+          {/* Platform Presets - Enterprise Standard */}
           {mode !== 'remix' && (
-            <div className="space-y-3">
-              <label className="ms-label">Platform Presets</label>
+            <div className="space-y-2.5">
+              <label className="text-[13px] font-medium text-foreground">Platform Presets</label>
               <div className="flex flex-wrap gap-2">
                 {PLATFORM_PRESETS.map((preset) => {
                   const isSelected = size === preset.size && seconds === preset.seconds && model === preset.model;
@@ -1045,9 +1045,9 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
                       key={preset.id}
                       onClick={() => applyPreset(preset.id)}
                       className={`
-                        px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200
+                        h-9 px-4 rounded-lg border text-[13px] font-medium transition-all duration-200
                         ${isSelected
-                          ? 'border-[var(--ms-primary)] bg-[var(--ms-primary)] text-white'
+                          ? 'border-[var(--ms-primary)] bg-[var(--ms-primary)] text-white shadow-sm'
                           : 'border-[var(--ms-border)] hover:border-[var(--ms-primary)]/50 hover:bg-muted/50 text-foreground'
                         }
                       `}
@@ -1082,15 +1082,15 @@ export function VideoGenerator({ onVideoStarted, onVideoUpdate, recentVideos, re
             </div>
           )}
 
-          {/* Size & Duration */}
+          {/* Size & Duration - Enterprise Standard */}
           {mode !== 'remix' && (
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="ms-label">Resolution</label>
+              <div className="space-y-2.5">
+                <label className="text-[13px] font-medium text-foreground">Resolution</label>
                 <select
                   value={size}
                   onChange={(e) => setSize(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  className="w-full h-10 px-3.5 rounded-lg border border-input bg-background text-[14px] cursor-pointer"
                 >
                   {SIZE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>

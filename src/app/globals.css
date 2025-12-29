@@ -927,53 +927,74 @@
 
   /* ============================================================================
      ENTERPRISE SAAS COMPONENT TOKENS
-     Standard sizing based on industry best practices
+     Standard sizing based on industry best practices (Figma, Linear, Notion)
      ============================================================================ */
 
   :root {
-    /* Button Heights - SaaS Standard */
+    /* Button Heights - SaaS Standard (8px grid system) */
+    --ms-btn-height-xs: 28px;
+    /* Compact inline actions */
     --ms-btn-height-sm: 32px;
     /* Small actions, secondary */
     --ms-btn-height-md: 36px;
     /* Default buttons */
-    --ms-btn-height-lg: 44px;
-    /* Primary CTAs */
+    --ms-btn-height-lg: 40px;
+    /* Primary actions */
+    --ms-btn-height-xl: 44px;
+    /* Hero CTAs */
 
-    /* Input Heights */
+    /* Input Heights - Consistent with buttons */
+    --ms-input-height-sm: 32px;
+    /* Compact inputs */
     --ms-input-height: 36px;
     /* Standard input fields */
-    --ms-input-height-lg: 44px;
+    --ms-input-height-lg: 40px;
     /* Prominent inputs */
-    --ms-textarea-min: 140px;
-    /* Minimum textarea height */
 
-    /* Text Sizes - SaaS Standard */
-    --ms-text-xs: 0.75rem;
+    /* Textarea Heights - Enterprise standard */
+    --ms-textarea-sm: 100px;
+    /* Compact prompts */
+    --ms-textarea-md: 160px;
+    /* Default prompts */
+    --ms-textarea-lg: 200px;
+    /* Large text areas */
+    --ms-textarea-xl: 280px;
+    /* Full content editing */
+
+    /* Text Sizes - SaaS Standard (based on 16px root) */
+    --ms-text-xs: 0.6875rem;
+    /* 11px - timestamps, meta */
+    --ms-text-sm: 0.75rem;
     /* 12px - captions, badges */
-    --ms-text-sm: 0.8125rem;
-    /* 13px - secondary text */
-    --ms-text-base: 0.875rem;
-    /* 14px - body text */
-    --ms-text-md: 1rem;
-    /* 16px - emphasis, subheadings */
-    --ms-text-lg: 1.125rem;
-    /* 18px - section titles */
-    --ms-text-xl: 1.25rem;
-    /* 20px - page titles */
-    --ms-text-2xl: 1.5rem;
-    /* 24px - major headings */
+    --ms-text-base: 0.8125rem;
+    /* 13px - body text */
+    --ms-text-md: 0.875rem;
+    /* 14px - emphasis */
+    --ms-text-lg: 1rem;
+    /* 16px - section titles */
+    --ms-text-xl: 1.125rem;
+    /* 18px - page titles */
+    --ms-text-2xl: 1.25rem;
+    /* 20px - major headings */
+    --ms-text-3xl: 1.5rem;
+    /* 24px - hero headings */
 
-    /* Icon Sizes */
-    --ms-icon-xs: 14px;
-    /* Inline icons */
-    --ms-icon-sm: 16px;
+    /* Icon Sizes - Consistent with text */
+    --ms-icon-xs: 12px;
+    /* Inline small */
+    --ms-icon-sm: 14px;
     /* Button icons */
-    --ms-icon-md: 20px;
+    --ms-icon-md: 16px;
     /* Standard icons */
-    --ms-icon-lg: 24px;
+    --ms-icon-lg: 18px;
+    /* Emphasis icons */
+    --ms-icon-xl: 20px;
     /* Header icons */
+    --ms-icon-2xl: 24px;
+    /* Feature icons */
 
-    /* Spacing - 4px Grid */
+    /* Spacing - 4px Grid System */
+    --ms-space-0: 0px;
     --ms-space-1: 4px;
     --ms-space-2: 8px;
     --ms-space-3: 12px;
@@ -983,75 +1004,186 @@
     --ms-space-8: 32px;
     --ms-space-10: 40px;
     --ms-space-12: 48px;
+    --ms-space-16: 64px;
 
-    /* Border Radius */
-    --ms-radius-sm: 4px;
-    --ms-radius-md: 6px;
-    --ms-radius-lg: 8px;
+    /* Border Radius - Modern SaaS */
+    --ms-radius-xs: 4px;
+    --ms-radius-sm: 6px;
+    --ms-radius-md: 8px;
+    --ms-radius-lg: 10px;
     --ms-radius-xl: 12px;
+    --ms-radius-2xl: 16px;
+    --ms-radius-full: 9999px;
+
+    /* Card & Panel Standards */
+    --ms-card-padding: 20px;
+    --ms-card-padding-lg: 24px;
+    --ms-panel-gap: 24px;
+    --ms-form-gap: 20px;
+
+    /* Focus Ring */
+    --ms-focus-ring: 0 0 0 2px var(--ms-primary), 0 0 0 4px rgba(13, 148, 136, 0.15);
   }
 
   /* Enterprise Button Styles */
+  .ms-btn-xs {
+    height: var(--ms-btn-height-xs);
+    padding: 0 10px;
+    font-size: var(--ms-text-sm);
+    font-weight: 500;
+    border-radius: var(--ms-radius-sm);
+    gap: 6px;
+  }
+
   .ms-btn-sm {
     height: var(--ms-btn-height-sm);
     padding: 0 12px;
-    font-size: var(--ms-text-sm);
-    border-radius: var(--ms-radius-md);
+    font-size: var(--ms-text-base);
+    font-weight: 500;
+    border-radius: var(--ms-radius-sm);
+    gap: 6px;
   }
 
   .ms-btn-md {
     height: var(--ms-btn-height-md);
     padding: 0 16px;
-    font-size: var(--ms-text-base);
+    font-size: var(--ms-text-md);
+    font-weight: 500;
     border-radius: var(--ms-radius-md);
+    gap: 8px;
   }
 
   .ms-btn-lg {
     height: var(--ms-btn-height-lg);
     padding: 0 20px;
-    font-size: var(--ms-text-base);
+    font-size: var(--ms-text-md);
     font-weight: 500;
+    border-radius: var(--ms-radius-md);
+    gap: 8px;
+  }
+
+  .ms-btn-xl {
+    height: var(--ms-btn-height-xl);
+    padding: 0 24px;
+    font-size: var(--ms-text-lg);
+    font-weight: 600;
     border-radius: var(--ms-radius-lg);
+    gap: 10px;
   }
 
   /* Enterprise Input Styles */
+  .ms-input-sm {
+    height: var(--ms-input-height-sm);
+    padding: 0 10px;
+    font-size: var(--ms-text-base);
+    border-radius: var(--ms-radius-sm);
+  }
+
   .ms-input {
     height: var(--ms-input-height);
     padding: 0 12px;
-    font-size: var(--ms-text-base);
+    font-size: var(--ms-text-md);
     border-radius: var(--ms-radius-md);
   }
 
-  .ms-textarea {
-    min-height: var(--ms-textarea-min);
-    padding: 12px;
+  .ms-input-lg {
+    height: var(--ms-input-height-lg);
+    padding: 0 14px;
+    font-size: var(--ms-text-md);
+    border-radius: var(--ms-radius-md);
+  }
+
+  /* Enterprise Textarea Styles */
+  .ms-textarea-sm {
+    min-height: var(--ms-textarea-sm);
+    padding: 10px 12px;
     font-size: var(--ms-text-base);
-    line-height: 1.5;
+    line-height: 1.6;
     border-radius: var(--ms-radius-md);
     resize: vertical;
   }
 
+  .ms-textarea {
+    min-height: var(--ms-textarea-md);
+    padding: 12px 14px;
+    font-size: var(--ms-text-md);
+    line-height: 1.6;
+    border-radius: var(--ms-radius-md);
+    resize: vertical;
+  }
+
+  .ms-textarea-lg {
+    min-height: var(--ms-textarea-lg);
+    padding: 14px 16px;
+    font-size: var(--ms-text-md);
+    line-height: 1.6;
+    border-radius: var(--ms-radius-lg);
+    resize: vertical;
+  }
+
+  /* Enterprise Select/Dropdown */
+  .ms-select {
+    height: var(--ms-input-height);
+    padding: 0 12px;
+    padding-right: 32px;
+    font-size: var(--ms-text-md);
+    border-radius: var(--ms-radius-md);
+    background-position: right 10px center;
+    cursor: pointer;
+  }
+
+  .ms-select-lg {
+    height: var(--ms-input-height-lg);
+    padding: 0 14px;
+    padding-right: 36px;
+    font-size: var(--ms-text-md);
+    border-radius: var(--ms-radius-md);
+  }
+
   /* Enterprise Label */
   .ms-form-label {
-    font-size: var(--ms-text-sm);
+    display: block;
+    font-size: var(--ms-text-base);
     font-weight: 500;
-    color: var(--ms-text-primary);
+    color: var(--foreground);
     margin-bottom: var(--ms-space-2);
   }
 
-  /* Card Spacing */
+  .ms-form-helper {
+    font-size: var(--ms-text-sm);
+    color: var(--ms-text-muted);
+    margin-top: var(--ms-space-1);
+  }
+
+  /* Enterprise Card Styles */
+  .ms-card {
+    border-radius: var(--ms-radius-xl);
+    border: 1px solid var(--ms-border);
+    background: var(--card);
+  }
+
   .ms-card-content {
-    padding: var(--ms-space-6);
+    padding: var(--ms-card-padding);
   }
 
   .ms-card-header {
-    padding: var(--ms-space-6);
+    padding: var(--ms-card-padding);
     padding-bottom: var(--ms-space-4);
+  }
+
+  .ms-card-footer {
+    padding: var(--ms-card-padding);
+    padding-top: var(--ms-space-4);
+    border-top: 1px solid var(--ms-border);
   }
 
   /* Section Spacing */
   .ms-section-gap {
-    gap: var(--ms-space-6);
+    gap: var(--ms-panel-gap);
+  }
+
+  .ms-form-gap {
+    gap: var(--ms-form-gap);
   }
 
   .ms-item-gap {
@@ -1059,19 +1191,34 @@
   }
 
   /* Enterprise Tab Styles */
+  .ms-tabs-list {
+    display: flex;
+    padding: 4px;
+    gap: 4px;
+    background: var(--muted);
+    border-radius: var(--ms-radius-lg);
+  }
+
   .ms-tab-trigger {
     height: var(--ms-btn-height-md);
     padding: 0 16px;
-    font-size: var(--ms-text-sm);
+    font-size: var(--ms-text-base);
     font-weight: 500;
     border-radius: var(--ms-radius-md);
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ms-tab-trigger:hover:not([data-state="active"]) {
+    background: rgba(0, 0, 0, 0.04);
   }
 
   .ms-tab-trigger[data-state="active"] {
     background: var(--ms-gradient-primary);
     color: white;
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(13, 148, 136, 0.2);
   }
 
   /* Enterprise Header - Compact */
@@ -1080,13 +1227,129 @@
   }
 
   .ms-page-title {
-    font-size: var(--ms-text-lg);
+    font-size: var(--ms-text-xl);
     font-weight: 600;
     line-height: 1.4;
   }
 
   .ms-page-description {
-    font-size: var(--ms-text-sm);
+    font-size: var(--ms-text-base);
     color: var(--ms-text-secondary);
+    margin-top: 2px;
+  }
+
+  /* Enterprise Badge */
+  .ms-badge {
+    height: 22px;
+    padding: 0 8px;
+    font-size: var(--ms-text-xs);
+    font-weight: 500;
+    border-radius: var(--ms-radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .ms-badge-sm {
+    height: 18px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  /* Form Group */
+  .ms-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ms-space-2);
+  }
+
+  /* Grid Layouts */
+  .ms-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--ms-space-4);
+  }
+
+  .ms-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--ms-space-4);
+  }
+
+  /* Action Button Group */
+  .ms-action-group {
+    display: flex;
+    align-items: center;
+    gap: var(--ms-space-2);
+  }
+
+  /* Preset Buttons */
+  .ms-preset-btn {
+    height: var(--ms-btn-height-sm);
+    padding: 0 14px;
+    font-size: var(--ms-text-base);
+    font-weight: 500;
+    border-radius: var(--ms-radius-md);
+    border: 1px solid var(--ms-border);
+    background: transparent;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .ms-preset-btn:hover {
+    border-color: var(--ms-primary);
+    background: rgba(13, 148, 136, 0.04);
+  }
+
+  .ms-preset-btn.active {
+    border-color: var(--ms-primary);
+    background: var(--ms-primary);
+    color: white;
+  }
+
+  /* Icon Buttons */
+  .ms-icon-btn {
+    width: var(--ms-btn-height-sm);
+    height: var(--ms-btn-height-sm);
+    border-radius: var(--ms-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ms-icon-btn-lg {
+    width: var(--ms-btn-height-lg);
+    height: var(--ms-btn-height-lg);
+    border-radius: var(--ms-radius-lg);
+  }
+
+  /* Divider */
+  .ms-divider {
+    height: 1px;
+    background: var(--ms-border);
+    margin: var(--ms-space-5) 0;
+  }
+
+  /* Modal Standards */
+  .ms-modal {
+    border-radius: var(--ms-radius-2xl);
+    padding: 0;
+    max-width: 480px;
+  }
+
+  .ms-modal-header {
+    padding: var(--ms-space-5) var(--ms-space-6);
+  }
+
+  .ms-modal-content {
+    padding: var(--ms-space-6);
+  }
+
+  .ms-modal-footer {
+    padding: var(--ms-space-4) var(--ms-space-6);
+    border-top: 1px solid var(--ms-border);
+    display: flex;
+    gap: var(--ms-space-3);
+    justify-content: flex-end;
   }
 }

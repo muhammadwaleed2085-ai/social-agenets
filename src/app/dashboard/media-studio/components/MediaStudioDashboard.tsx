@@ -124,65 +124,65 @@ export function MediaStudioDashboard() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Professional Header - Enterprise Compact */}
+      {/* Professional Header - Enterprise Standard */}
       <div className="relative overflow-hidden" style={{ background: 'var(--ms-gradient-header)' }}>
         {/* Subtle geometric pattern overlay */}
         <div className="absolute inset-0 ms-pattern-diagonal opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20" />
 
-        <div className="relative px-6 py-4">
+        <div className="relative px-6 py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* Logo - Standardized */}
+            <div className="flex items-center gap-4">
+              {/* Logo - Enterprise Standard */}
               <div className="relative">
                 <div
-                  className="p-2.5 rounded-lg"
+                  className="p-3 rounded-xl"
                   style={{ background: 'var(--ms-gradient-primary)' }}
                 >
-                  <Layers className="w-5 h-5 text-white" />
+                  <Layers className="w-6 h-6 text-white" />
                 </div>
               </div>
 
               <div>
-                <h1 className="text-lg font-semibold text-white flex items-center gap-2">
+                <h1 className="text-xl font-semibold text-white flex items-center gap-3">
                   Media Studio
                   <Badge
-                    className="text-xs font-medium border-0 h-5"
+                    className="text-xs font-medium border-0 h-6 px-2"
                     style={{
                       background: 'var(--ms-accent)',
                       color: 'var(--ms-accent-foreground)'
                     }}
                   >
-                    <Zap className="w-3 h-3 mr-1" />
+                    <Zap className="w-3.5 h-3.5 mr-1" />
                     AI
                   </Badge>
                 </h1>
-                <p className="text-sm text-white/60">
+                <p className="text-[13px] text-white/70 mt-0.5">
                   Professional AI-powered media generation
                 </p>
               </div>
             </div>
 
-            {/* Stats with Glassmorphism - Compact */}
-            <div className="hidden md:flex items-center gap-2">
+            {/* Stats with Glassmorphism - Enterprise Standard */}
+            <div className="hidden md:flex items-center gap-3">
               {state.isGenerating && (
-                <div className="ms-glass-strong flex items-center gap-2 px-3 py-2 rounded-md">
+                <div className="ms-glass-strong flex items-center gap-2.5 px-4 py-2.5 rounded-lg">
                   <div className="relative">
-                    <div className="w-2 h-2 rounded-full animate-ping absolute" style={{ background: 'var(--ms-success)' }} />
-                    <div className="w-2 h-2 rounded-full" style={{ background: 'var(--ms-success)' }} />
+                    <div className="w-2.5 h-2.5 rounded-full animate-ping absolute" style={{ background: 'var(--ms-success)' }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--ms-success)' }} />
                   </div>
-                  <span className="text-white text-sm font-medium">Processing...</span>
+                  <span className="text-white text-[13px] font-medium">Processing...</span>
                 </div>
               )}
-              <div className="ms-glass-strong flex items-center gap-2 px-3 py-2 rounded-md">
-                <ImageIcon className="w-4 h-4" style={{ color: 'var(--ms-primary-light)' }} />
-                <span className="text-white font-semibold text-sm">{state.recentImages.length}</span>
-                <span className="text-white/50 text-xs">images</span>
+              <div className="ms-glass-strong flex items-center gap-2.5 px-4 py-2.5 rounded-lg">
+                <ImageIcon className="w-[18px] h-[18px]" style={{ color: 'var(--ms-primary-light)' }} />
+                <span className="text-white font-semibold text-[14px]">{state.recentImages.length}</span>
+                <span className="text-white/60 text-[12px]">images</span>
               </div>
-              <div className="ms-glass-strong flex items-center gap-2 px-3 py-2 rounded-md">
-                <Video className="w-4 h-4" style={{ color: 'var(--ms-accent-light)' }} />
-                <span className="text-white font-semibold text-sm">{state.recentVideos.length + state.recentVeoVideos.length}</span>
-                <span className="text-white/50 text-xs">videos</span>
+              <div className="ms-glass-strong flex items-center gap-2.5 px-4 py-2.5 rounded-lg">
+                <Video className="w-[18px] h-[18px]" style={{ color: 'var(--ms-accent-light)' }} />
+                <span className="text-white font-semibold text-[14px]">{state.recentVideos.length + state.recentVeoVideos.length}</span>
+                <span className="text-white/60 text-[12px]">videos</span>
               </div>
             </div>
           </div>
@@ -197,8 +197,8 @@ export function MediaStudioDashboard() {
           className="flex-1 flex flex-col"
         >
           {/* Tab Navigation - Enterprise Standard */}
-          <div className="bg-card border rounded-lg p-1.5 shadow-sm mb-6">
-            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-1.5 h-auto">
+          <div className="bg-card border rounded-xl p-1.5 shadow-sm mb-6">
+            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-2 h-auto">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
 
@@ -207,8 +207,8 @@ export function MediaStudioDashboard() {
                     key={tab.id}
                     value={tab.id}
                     className={`
-                      relative flex items-center justify-center gap-2 h-9 px-4 rounded-md 
-                      text-sm font-medium transition-all duration-200
+                      relative flex items-center justify-center gap-2.5 h-10 px-5 rounded-lg 
+                      text-[13px] font-medium transition-all duration-200
                       data-[state=inactive]:hover:bg-muted/60
                       group
                     `}
@@ -219,11 +219,11 @@ export function MediaStudioDashboard() {
                           ? 'linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)'
                           : 'var(--ms-gradient-accent)',
                       color: 'white',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)'
                     } : undefined}
                   >
                     <tab.icon
-                      className={`w-4 h-4 transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}
+                      className={`w-[18px] h-[18px] transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`}
                       style={!isActive ? {
                         color: tab.color === 'teal'
                           ? 'var(--ms-primary)'
@@ -238,7 +238,7 @@ export function MediaStudioDashboard() {
                     {/* Animated underline for inactive tabs on hover */}
                     {!isActive && (
                       <span
-                        className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-0 h-0.5 rounded-full transition-all duration-300 group-hover:w-6"
+                        className="absolute bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 rounded-full transition-all duration-300 group-hover:w-8"
                         style={{
                           background: tab.color === 'teal'
                             ? 'var(--ms-primary)'

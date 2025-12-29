@@ -210,17 +210,17 @@ export function VeoTextToVideo({
   }, [prompt, model, aspectRatio, duration, resolution, onGenerationStarted, onError]);
 
   return (
-    <div className="space-y-4">
-      {/* Platform Presets */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Quick Presets</Label>
+    <div className="space-y-5">
+      {/* Platform Presets - Enterprise Standard */}
+      <div className="space-y-2.5">
+        <Label className="text-[13px] font-medium">Quick Presets</Label>
         <div className="grid grid-cols-3 gap-2">
           {VEO_PLATFORM_PRESETS.map((preset) => (
             <button
               key={preset.id}
               onClick={() => handlePresetSelect(preset.id)}
               disabled={isGenerating}
-              className="p-2 rounded-lg border border-border hover:border-purple-500/50 text-center transition-all text-xs"
+              className="h-10 px-3 rounded-xl border border-border hover:border-purple-500/50 text-center transition-all text-[12px] font-medium"
             >
               <span className="mr-1">{preset.icon}</span>
               {preset.name}
@@ -229,11 +229,11 @@ export function VeoTextToVideo({
         </div>
       </div>
 
-      {/* Prompt */}
-      <div className="space-y-2">
-        <Label htmlFor="prompt" className="text-sm font-medium">
+      {/* Prompt - Enterprise Standard */}
+      <div className="space-y-2.5">
+        <Label htmlFor="prompt" className="text-[13px] font-medium">
           Prompt
-          <span className="text-muted-foreground ml-1 font-normal">
+          <span className="text-muted-foreground ml-1.5 font-normal text-[11px]">
             (max 1024 tokens)
           </span>
         </Label>
@@ -243,61 +243,61 @@ export function VeoTextToVideo({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           disabled={isGenerating}
-          className="min-h-[100px] resize-none"
+          className="min-h-[180px] resize-none text-[14px] leading-relaxed p-3.5 rounded-lg"
         />
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleImprovePrompt}
               disabled={isImprovingPrompt || !prompt.trim() || isGenerating}
-              className="h-7 text-xs font-medium bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 border-0"
+              className="h-9 px-4 text-[13px] font-medium bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 border-0 rounded-lg"
             >
               {isImprovingPrompt ? (
                 <>
-                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1.5" />
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                   Improving...
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3 h-3 mr-1.5" />
+                  <Sparkles className="w-3.5 h-3.5 mr-2" />
                   Improve Prompt
                 </>
               )}
             </Button>
             {improvementError && (
-              <span className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
+              <span className="text-[11px] text-red-500 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" />
                 {improvementError}
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             💡 Tip: Veo 3.1 supports dialogue with quotes
           </p>
         </div>
       </div>
 
-      {/* Model Selection */}
+      {/* Model Selection - Enterprise Standard */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Model</Label>
+        <div className="space-y-2.5">
+          <Label className="text-[13px] font-medium">Model</Label>
           <Select
             value={model}
             onValueChange={(v: string) => setModel(v as VeoModel)}
             disabled={isGenerating}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-10 rounded-lg text-[13px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {VEO_MODEL_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   <div className="flex flex-col">
-                    <span>{opt.label}</span>
-                    <span className="text-xs text-muted-foreground">{opt.description}</span>
+                    <span className="text-[13px]">{opt.label}</span>
+                    <span className="text-[11px] text-muted-foreground">{opt.description}</span>
                   </div>
                 </SelectItem>
               ))}
@@ -305,14 +305,14 @@ export function VeoTextToVideo({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Aspect Ratio</Label>
+        <div className="space-y-2.5">
+          <Label className="text-[13px] font-medium">Aspect Ratio</Label>
           <Select
             value={aspectRatio}
             onValueChange={(v: string) => setAspectRatio(v as VeoAspectRatio)}
             disabled={isGenerating}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-10 rounded-lg text-[13px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -380,26 +380,26 @@ export function VeoTextToVideo({
 
       {/* Resolution Note */}
       {resolution === '1080p' && (
-        <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/50 p-2 rounded-lg">
+        <div className="flex items-center gap-2.5 text-[12px] text-amber-600 bg-amber-50 dark:bg-amber-950/50 p-3 rounded-xl">
           <Info className="w-4 h-4" />
           <span>1080p resolution is only available for 8 second videos</span>
         </div>
       )}
 
-      {/* Generate Button */}
+      {/* Generate Button - Enterprise Standard */}
       <Button
         onClick={handleGenerate}
         disabled={isGenerating || !prompt.trim()}
-        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+        className="w-full h-12 text-[14px] font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl"
       >
         {isGenerating ? (
           <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
             Generating...
           </>
         ) : (
           <>
-            <Sparkles className="w-4 h-4 mr-2" />
+            <Sparkles className="w-5 h-5 mr-2" />
             Generate Video
           </>
         )}

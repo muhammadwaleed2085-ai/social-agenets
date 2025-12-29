@@ -217,33 +217,33 @@ export function AudioGenerator() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Panel - Forms */}
             <div className="lg:col-span-2">
-                <Card className="h-full">
-                    <CardHeader className="pb-3">
+                <Card className="h-full border rounded-xl">
+                    <CardHeader className="p-5 pb-4">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-3">
                                 <div
-                                    className="p-2 rounded-md"
+                                    className="p-2.5 rounded-lg"
                                     style={{ background: `linear-gradient(135deg, var(--ms-primary) 0%, var(--ms-primary-dark) 100%)` }}
                                 >
-                                    <Sparkles className="w-4 h-4 text-white" />
+                                    <Sparkles className="w-[18px] h-[18px] text-white" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-base font-semibold">Audio Generator</CardTitle>
-                                    <CardDescription className="text-sm">
+                                    <CardTitle className="text-[15px] font-semibold">Audio Generator</CardTitle>
+                                    <CardDescription className="text-[13px] mt-0.5">
                                         ElevenLabs V3 • Professional Audio Studio
                                     </CardDescription>
                                 </div>
                             </div>
-                            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-teal-500/10 to-purple-500/10 text-teal-600 h-6">
-                                <AudioLines className="w-3 h-3 mr-1" />
+                            <Badge variant="secondary" className="text-[11px] bg-gradient-to-r from-teal-500/10 to-purple-500/10 text-teal-600 h-6 px-2.5">
+                                <AudioLines className="w-3.5 h-3.5 mr-1" />
                                 ElevenLabs
                             </Badge>
                         </div>
                     </CardHeader>
 
-                    <CardContent className="space-y-6">
+                    <CardContent className="p-5 pt-0 space-y-5">
                         {/* Tab Navigation - Enterprise Standard */}
-                        <div className="flex flex-wrap gap-1.5 p-1 bg-muted/50 rounded-lg">
+                        <div className="flex flex-wrap gap-1.5 p-1.5 bg-muted/50 rounded-xl">
                             {AUDIO_TABS.map((tab) => {
                                 const isActive = activeTab === tab.id;
                                 const Icon = tab.icon;
@@ -253,7 +253,7 @@ export function AudioGenerator() {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`
-                                            flex items-center gap-2 h-9 px-3 rounded-md transition-all duration-200 text-sm font-medium
+                                            flex items-center gap-2.5 h-10 px-4 rounded-lg transition-all duration-200 text-[13px] font-medium
                                             ${isActive
                                                 ? 'bg-gradient-to-r from-teal-500 to-teal-600 shadow-sm text-white'
                                                 : 'text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-gray-800/50'
@@ -261,10 +261,10 @@ export function AudioGenerator() {
                                         `}
                                     >
                                         <div
-                                            className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isActive ? 'bg-white/20 text-white' : 'bg-muted'
+                                            className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${isActive ? 'bg-white/20 text-white' : 'bg-muted'
                                                 }`}
                                         >
-                                            <Icon className={`w-3 h-3 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
+                                            <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
                                         </div>
                                         <span className="hidden sm:inline">{tab.label}</span>
                                     </button>
@@ -315,20 +315,20 @@ export function AudioGenerator() {
             </div>
 
             {/* Side Panel - Audio Player & History */}
-            <div className="space-y-6">
+            <div className="space-y-5">
                 {/* Audio Player */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Volume2 className="w-4 h-4 text-teal-500" />
+                <Card className="border rounded-xl">
+                    <CardHeader className="p-4 pb-3">
+                        <CardTitle className="text-[13px] font-medium flex items-center gap-2">
+                            <Volume2 className="w-[18px] h-[18px] text-teal-500" />
                             Audio Preview
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-4 pt-0">
                         {currentAudio ? (
                             <div className="space-y-4">
                                 {/* Waveform Placeholder */}
-                                <div className="h-24 bg-gradient-to-r from-teal-500/10 via-purple-500/10 to-teal-500/10 rounded-lg flex items-center justify-center relative overflow-hidden">
+                                <div className="h-28 bg-gradient-to-r from-teal-500/10 via-purple-500/10 to-teal-500/10 rounded-xl flex items-center justify-center relative overflow-hidden">
                                     <div className="absolute inset-0 flex items-center justify-center p-4">
                                         <AudioWaveform isPlaying={isPlaying} />
                                     </div>
@@ -339,18 +339,19 @@ export function AudioGenerator() {
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        className="h-12 w-12 rounded-full"
+                                        className="h-14 w-14 rounded-full"
                                         onClick={togglePlayback}
                                     >
                                         {isPlaying ? (
-                                            <Pause className="w-5 h-5" />
+                                            <Pause className="w-6 h-6" />
                                         ) : (
-                                            <Play className="w-5 h-5 ml-0.5" />
+                                            <Play className="w-6 h-6 ml-0.5" />
                                         )}
                                     </Button>
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        className="h-10 px-4 text-[13px]"
                                         onClick={() => currentAudio && handleDownload(currentAudio, `audio_${Date.now()}.mp3`)}
                                     >
                                         <Download className="w-4 h-4 mr-2" />
@@ -367,25 +368,25 @@ export function AudioGenerator() {
                                 />
                             </div>
                         ) : (
-                            <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
-                                <AudioLines className="w-8 h-8 mb-2 opacity-50" />
-                                <p className="text-sm">Generate audio to preview</p>
+                            <div className="h-36 flex flex-col items-center justify-center text-muted-foreground">
+                                <AudioLines className="w-10 h-10 mb-2.5 opacity-50" />
+                                <p className="text-[13px]">Generate audio to preview</p>
                             </div>
                         )}
                     </CardContent>
                 </Card>
 
                 {/* Recent Audio History */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4 text-purple-500" />
+                <Card className="border rounded-xl">
+                    <CardHeader className="p-4 pb-3">
+                        <CardTitle className="text-[13px] font-medium flex items-center gap-2">
+                            <RefreshCw className="w-[18px] h-[18px] text-purple-500" />
                             Recent Generations
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-4 pt-0">
                         {libraryAudio.length > 0 ? (
-                            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-teal-300 scrollbar-track-transparent hover:scrollbar-thumb-teal-400">
+                            <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-teal-300 scrollbar-track-transparent hover:scrollbar-thumb-teal-400">
                                 {libraryAudio.map((audio) => {
                                     // Extract tab type from config or default to generic
                                     const audioTab = (audio.config as any)?.audioTab as AudioTab;
@@ -396,17 +397,17 @@ export function AudioGenerator() {
                                         <button
                                             key={audio.id}
                                             onClick={() => setCurrentAudio(audio.url)}
-                                            className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all hover:bg-muted/50 ${currentAudio === audio.url ? 'border-teal-500 bg-teal-500/5' : 'border-transparent'
+                                            className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all hover:bg-muted/50 ${currentAudio === audio.url ? 'border-teal-500 bg-teal-500/5' : 'border-transparent'
                                                 }`}
                                         >
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${tabConfig?.gradient || 'from-gray-500 to-gray-600'}`}>
-                                                <Icon className="w-4 h-4 text-white" />
+                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br ${tabConfig?.gradient || 'from-gray-500 to-gray-600'}`}>
+                                                <Icon className="w-[18px] h-[18px] text-white" />
                                             </div>
                                             <div className="flex-1 text-left min-w-0">
-                                                <p className="text-sm font-medium truncate">
+                                                <p className="text-[13px] font-medium truncate">
                                                     {audio.prompt || tabConfig?.label || 'Audio'}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">
+                                                <p className="text-[11px] text-muted-foreground">
                                                     {new Date(audio.createdAt).toLocaleTimeString()}
                                                 </p>
                                             </div>
@@ -416,9 +417,9 @@ export function AudioGenerator() {
                                 })}
                             </div>
                         ) : (
-                            <div className="h-24 flex flex-col items-center justify-center text-muted-foreground">
-                                <Music className="w-6 h-6 mb-2 opacity-50" />
-                                <p className="text-xs">No audio generated yet</p>
+                            <div className="h-28 flex flex-col items-center justify-center text-muted-foreground">
+                                <Music className="w-7 h-7 mb-2 opacity-50" />
+                                <p className="text-[12px]">No audio generated yet</p>
                             </div>
                         )}
                     </CardContent>

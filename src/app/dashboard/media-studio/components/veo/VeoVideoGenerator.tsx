@@ -259,39 +259,39 @@ export function VeoVideoGenerator({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Configuration Panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <div className="p-2 rounded-lg" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)' }}>
-              <Video className="w-4 h-4 text-white" />
+      <Card className="border rounded-xl">
+        <CardHeader className="p-5 pb-4">
+          <CardTitle className="flex items-center gap-3 text-[15px]">
+            <div className="p-2.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)' }}>
+              <Video className="w-[18px] h-[18px] text-white" />
             </div>
-            <span className="ms-heading-md">Google Veo 3.1</span>
+            <span className="font-semibold">Google Veo 3.1</span>
           </CardTitle>
-          <CardDescription className="ms-body-sm flex items-center gap-2">
+          <CardDescription className="text-[13px] flex items-center gap-2 mt-1">
             AI Video Generation with Native Audio
-            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+            <Badge variant="secondary" className="text-[10px] flex items-center gap-1 h-5 px-2">
               <Volume2 className="w-3 h-3" />
               Audio
             </Badge>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          {/* Generation Mode Tabs */}
-          <div className="space-y-2">
-            <label className="ms-label">Generation Mode</label>
+        <CardContent className="p-5 pt-0 space-y-5">
+          {/* Generation Mode Tabs - Enterprise Standard */}
+          <div className="space-y-2.5">
+            <label className="text-[13px] font-medium text-foreground">Generation Mode</label>
             <div className="grid grid-cols-5 gap-2">
               {VEO_MODES.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setMode(m.id)}
                   disabled={isGenerating}
-                  className={`p-3 rounded-lg border text-center transition-all ${mode === m.id
-                    ? 'border-purple-500 bg-purple-500/10 dark:bg-purple-500/20 ring-1 ring-purple-500'
+                  className={`h-[76px] px-2 rounded-xl border text-center transition-all ${mode === m.id
+                    ? 'border-purple-500 bg-purple-500/10 dark:bg-purple-500/20 ring-1 ring-purple-500 shadow-sm'
                     : 'border-[var(--ms-border)] hover:border-purple-500/50'
                     } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex justify-center mb-1">{m.icon}</div>
-                  <div className="font-medium text-xs text-foreground">{m.label}</div>
+                  <div className="font-medium text-[12px] text-foreground">{m.label}</div>
                   <div className="text-[10px] text-muted-foreground">{m.description}</div>
                 </button>
               ))}
