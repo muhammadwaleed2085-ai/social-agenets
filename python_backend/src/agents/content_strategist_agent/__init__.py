@@ -10,6 +10,7 @@ from .schemas import (
     ContentBlock,
 )
 from .prompts import get_content_strategist_system_prompt
+from .tools import get_browser_tools
 
 __all__ = [
     "content_strategist_chat",
@@ -19,4 +20,8 @@ __all__ = [
     "ChatStrategistResponse",
     "ContentBlock",
     "get_content_strategist_system_prompt",
+    "get_browser_tools",
 ]
+
+
+

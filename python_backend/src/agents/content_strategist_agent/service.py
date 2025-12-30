@@ -2,9 +2,14 @@
 Content Strategist Agent - Service
 LangChain create_agent with PostgresSaver for short-term memory
 Supports multimodal input (text, images, PDFs)
+Includes Playwright browser tools for web research and content analysis
 
 Production pattern: Use AsyncPostgresSaver with connection pooling
 managed via FastAPI lifespan context manager.
+
+Install Playwright dependencies:
+    pip install playwright lxml
+    playwright install  # Installs browser binaries
 """
 import logging
 from typing import AsyncGenerator, List
@@ -18,6 +23,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from .schemas import ChatStrategistRequest, ContentBlock
 from .prompts import get_content_strategist_system_prompt
+from .tools import get_browser_tools
 from ...config import settings
 
 logger = logging.getLogger(__name__)
@@ -86,7 +92,7 @@ def get_checkpointer():
 
 
 async def get_agent():
-    """Get or create the content strategist agent"""
+    """Get or create the content strategist agent with Playwright browser tools"""
     global _agent
     if _agent is None:
         model = ChatGoogleGenerativeAI(
@@ -95,13 +101,16 @@ async def get_agent():
             temperature=0.7,
         )
         
+        # Load browser tools asynchronously
+        tools = await get_browser_tools()
+        
         _agent = create_agent(
             model=model,
-            tools=[],
+            tools=tools,  # Playwright browser tools
             system_prompt=get_content_strategist_system_prompt(),
             checkpointer=get_checkpointer(),
         )
-        logger.info("Content strategist agent created")
+        logger.info(f"Content strategist agent created with {len(tools)} browser tools")
     return _agent
 
 
