@@ -1,0 +1,82 @@
+# =============================================================================
+# Content Creator - Git Ignore
+# =============================================================================
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Python Backend
+python_backend/.venv/
+python_backend/__pycache__/
+python_backend/**/__pycache__/
+python_backend/*.pyc
+python_backend/*.pyo
+python_backend/.pytest_cache/
+python_backend/.coverage
+python_backend/htmlcov/
+python_backend/*.egg-info/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+dist-ssr/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+*.local
+
+# Supabase
+supabase/.temp/

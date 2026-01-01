@@ -1,0 +1,218 @@
+"""
+SDK Lead Forms Service
+Meta Business SDK - LeadGenForm
+
+Uses:
+- facebook_business.adobjects.leadgenform
+- Create and manage lead generation forms
+"""
+import asyncio
+import logging
+from typing import Optional, Dict, Any, List
+
+from facebook_business.adobjects.page import Page
+from facebook_business.adobjects.leadgenform import LeadGenForm
+from facebook_business.exceptions import FacebookRequestError
+
+logger = logging.getLogger(__name__)
+
+
+class LeadFormsService:
+    """Service for lead form management using Meta SDK."""
+    
+    def __init__(self, access_token: str):
+        self.access_token = access_token
+    
+    def _init_api(self):
+        from facebook_business.api import FacebookAdsApi
+        FacebookAdsApi.init(access_token=self.access_token)
+    
+    def _get_lead_forms_sync(
+        self,
+        page_id: str,
+        limit: int = 50
+    ) -> Dict[str, Any]:
+        """Get all lead forms for a page."""
+        try:
+            self._init_api()
+            page = Page(page_id)
+            
+            forms = page.get_lead_gen_forms(
+                fields=[
+                    LeadGenForm.Field.id,
+                    LeadGenForm.Field.name,
+                    LeadGenForm.Field.status,
+                    LeadGenForm.Field.leads_count,
+                    LeadGenForm.Field.created_time,
+                    LeadGenForm.Field.expired_leads_count,
+                    LeadGenForm.Field.follow_up_action_url,
+                    LeadGenForm.Field.privacy_policy_url,
+                ],
+                params={"limit": limit}
+            )
+            
+            result = []
+            for form in forms:
+                result.append({
+                    "id": form.get("id"),
+                    "name": form.get("name"),
+                    "status": form.get("status"),
+                    "leads_count": form.get("leads_count", 0),
+                    "expired_leads_count": form.get("expired_leads_count", 0),
+                    "created_time": form.get("created_time"),
+                    "privacy_policy_url": form.get("privacy_policy_url"),
+                    "follow_up_action_url": form.get("follow_up_action_url")
+                })
+            
+            return {"success": True, "forms": result}
+            
+        except FacebookRequestError as e:
+            logger.error(f"Facebook API error: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"Get lead forms error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_lead_forms(
+        self,
+        page_id: str,
+        limit: int = 50
+    ) -> Dict[str, Any]:
+        """Async wrapper."""
+        return await asyncio.to_thread(
+            self._get_lead_forms_sync,
+            page_id,
+            limit
+        )
+    
+    def _create_lead_form_sync(
+        self,
+        page_id: str,
+        name: str,
+        questions: List[Dict[str, Any]],
+        privacy_policy_url: str,
+        thank_you_page_url: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new lead form.
+        
+        questions format:
+        [
+            {"type": "FULL_NAME"},
+            {"type": "EMAIL"},
+            {"type": "PHONE"},
+            {"type": "CUSTOM", "key": "company", "label": "Company Name"}
+        ]
+        """
+        try:
+            self._init_api()
+            page = Page(page_id)
+            
+            params = {
+                "name": name,
+                "questions": questions,
+                "privacy_policy": {"url": privacy_policy_url},
+                "follow_up_action_url": thank_you_page_url or privacy_policy_url,
+            }
+            
+            form = page.create_lead_gen_form(params=params)
+            
+            return {
+                "success": True,
+                "form_id": form.get("id"),
+                "name": name
+            }
+            
+        except FacebookRequestError as e:
+            logger.error(f"Facebook API error: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"Create lead form error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def create_lead_form(
+        self,
+        page_id: str,
+        name: str,
+        questions: List[Dict[str, Any]],
+        privacy_policy_url: str,
+        thank_you_page_url: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Async wrapper."""
+        return await asyncio.to_thread(
+            self._create_lead_form_sync,
+            page_id,
+            name,
+            questions,
+            privacy_policy_url,
+            thank_you_page_url
+        )
+    
+    def _get_leads_sync(
+        self,
+        form_id: str,
+        limit: int = 100
+    ) -> Dict[str, Any]:
+        """Get leads from a form."""
+        try:
+            self._init_api()
+            form = LeadGenForm(form_id)
+            
+            leads = form.get_leads(
+                fields=["id", "created_time", "field_data"],
+                params={"limit": limit}
+            )
+            
+            result = []
+            for lead in leads:
+                field_data = {}
+                for field in lead.get("field_data", []):
+                    field_data[field.get("name")] = field.get("values", [None])[0]
+                
+                result.append({
+                    "id": lead.get("id"),
+                    "created_time": lead.get("created_time"),
+                    "data": field_data
+                })
+            
+            return {"success": True, "leads": result}
+            
+        except FacebookRequestError as e:
+            logger.error(f"Facebook API error: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"Get leads error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_leads(
+        self,
+        form_id: str,
+        limit: int = 100
+    ) -> Dict[str, Any]:
+        """Async wrapper."""
+        return await asyncio.to_thread(
+            self._get_leads_sync,
+            form_id,
+            limit
+        )
+
+
+# Standard question types
+LEAD_FORM_QUESTION_TYPES = [
+    "FULL_NAME",
+    "FIRST_NAME",
+    "LAST_NAME",
+    "EMAIL",
+    "PHONE",
+    "STREET_ADDRESS",
+    "CITY",
+    "STATE",
+    "ZIP",
+    "COUNTRY",
+    "COMPANY_NAME",
+    "JOB_TITLE",
+    "WORK_EMAIL",
+    "WORK_PHONE",
+    "DOB",
+    "CUSTOM"
+]

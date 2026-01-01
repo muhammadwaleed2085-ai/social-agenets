@@ -1,0 +1,64 @@
+# Python Backend Dockerfile
+# Multi-stage build for Content Creator FastAPI Backend
+
+# ============================================================================
+# Stage 1: Build stage - Install dependencies with uv
+# ============================================================================
+FROM python:3.13-slim AS builder
+
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Set environment variables for uv
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+# Copy dependency files only
+COPY python_backend/pyproject.toml ./pyproject.toml
+COPY python_backend/uv.lock ./uv.lock
+
+# Compile dependencies to requirements.txt and install
+RUN uv pip compile pyproject.toml -o requirements.txt && \
+    uv pip install --system -r requirements.txt
+
+# ============================================================================
+# Stage 2: Production stage - Slim runtime image
+# ============================================================================
+FROM python:3.13-slim AS runtime
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install FFmpeg for video/audio processing (required for Media Studio)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd --gid 1000 appgroup && \
+    useradd --uid 1000 --gid 1000 --no-create-home appuser
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application source code
+COPY --chown=appuser:appgroup python_backend/src ./src
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check (requires python to be available, which it is)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Run the application using python -m uvicorn
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

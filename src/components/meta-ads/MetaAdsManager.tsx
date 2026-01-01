@@ -1,0 +1,919 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  BarChart3,
+  Users,
+  Megaphone,
+  Plus,
+  RefreshCw,
+  TrendingUp,
+  DollarSign,
+  Eye,
+  MousePointerClick,
+  AlertCircle,
+  CheckCircle2,
+  Facebook,
+  Instagram,
+  Calendar,
+  Building2,
+  ChevronDown,
+  Check,
+  Loader2,
+  Settings,
+  MoreHorizontal,
+  FlaskConical,
+  Zap,
+  Image,
+  Server,
+  Shield,
+  FileBarChart,
+  Wrench,
+  ChevronRight,
+  Percent,
+} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+
+// Import sub-components
+import CampaignManager from './CampaignManager';
+import AudienceManager from './AudienceManager';
+import AdsAnalytics from './AdsAnalytics';
+import ReportsBuilder from './ReportsBuilder';
+import ABTestManager from './ABTestManager';
+import AutomationRulesManager from './AutomationRulesManager';
+import CreativeHub from './CreativeHub';
+import ConversionsAPIManager from './ConversionsAPIManager';
+import ComplianceCenter from './ComplianceCenter';
+import SDKToolbox from './SDKToolbox';
+
+import type { Campaign, AdSet, Ad, MetaAdsState, DatePreset } from '@/types/metaAds';
+import { DATE_PRESETS, formatNumber } from '@/types/metaAds';
+
+const initialState: MetaAdsState = {
+  adAccount: null,
+  campaigns: [],
+  adSets: [],
+  ads: [],
+  audiences: [],
+  images: [],
+  videos: [],
+  loading: true,
+  error: null,
+  selectedCampaign: null,
+  selectedAdSet: null,
+  selectedAd: null,
+  selectedItems: [],
+  viewMode: 'campaigns',
+  datePreset: 'last_7d',
+};
+
+export default function MetaAdsManager() {
+  const { user } = useAuth();
+  const [state, setState] = useState<MetaAdsState>(initialState);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [datePreset, setDatePreset] = useState<DatePreset>('last_7d');
+  const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+
+  // Business Portfolio state
+  const [availableBusinesses, setAvailableBusinesses] = useState<any[]>([]);
+  const [activeBusiness, setActiveBusiness] = useState<any>(null);
+  const [showBusinessSelector, setShowBusinessSelector] = useState(false);
+  const [isSwitchingBusiness, setIsSwitchingBusiness] = useState(false);
+
+  useEffect(() => {
+    checkConnectionStatus();
+    fetchBusinesses();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showBusinessSelector) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('[data-business-selector]')) {
+          setShowBusinessSelector(false);
+        }
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showBusinessSelector]);
+
+  const fetchBusinesses = async () => {
+    try {
+      const response = await fetch('/api/v1/meta-ads/switch-business');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableBusinesses(data.availableBusinesses || []);
+        setActiveBusiness(data.activeBusiness);
+      }
+    } catch (error) { }
+  };
+
+  const handleSwitchBusiness = async (businessId: string) => {
+    setIsSwitchingBusiness(true);
+    try {
+      const response = await fetch('/api/v1/meta-ads/switch-business', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActiveBusiness({
+          id: data.business.id,
+          name: data.business.name,
+          adAccount: data.adAccount,
+        });
+        setShowBusinessSelector(false);
+        await checkConnectionStatus();
+        await loadDashboardData();
+      }
+    } catch (error) {
+    } finally {
+      setIsSwitchingBusiness(false);
+    }
+  };
+
+  const checkConnectionStatus = async () => {
+    try {
+      const response = await fetch('/api/v1/meta-ads/status');
+      if (response.ok) {
+        const data = await response.json();
+        setIsConnected(data.isConnected);
+        if (data.isConnected && data.adAccount) {
+          setState(prev => ({ ...prev, adAccount: data.adAccount, loading: false }));
+          loadDashboardData();
+        } else {
+          setState(prev => ({ ...prev, loading: false }));
+        }
+      } else {
+        setIsConnected(false);
+        setState(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      setIsConnected(false);
+      setState(prev => ({ ...prev, loading: false, error: 'Failed to check connection status' }));
+    }
+  };
+
+  const loadDashboardData = async () => {
+    setIsRefreshing(true);
+    try {
+      const [campaignsRes, audiencesRes] = await Promise.all([
+        fetch('/api/v1/meta-ads/campaigns'),
+        fetch('/api/v1/meta-ads/audiences'),
+      ]);
+
+      if (campaignsRes.ok) {
+        const campaignsData = await campaignsRes.json();
+        setState(prev => ({
+          ...prev,
+          campaigns: campaignsData.campaigns || [],
+          adSets: campaignsData.adSets || [],
+          ads: campaignsData.ads || [],
+        }));
+      }
+
+      if (audiencesRes.ok) {
+        const audiencesData = await audiencesRes.json();
+        setState(prev => ({ ...prev, audiences: audiencesData.audiences || [] }));
+      }
+    } catch (error) {
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Calculate metrics
+  const totalSpend = state.campaigns.reduce((sum, c) => sum + (c.insights?.spend || 0), 0);
+  const totalImpressions = state.campaigns.reduce((sum, c) => sum + (c.insights?.impressions || 0), 0);
+  const totalClicks = state.campaigns.reduce((sum, c) => sum + (c.insights?.clicks || 0), 0);
+  const totalReach = state.campaigns.reduce((sum, c) => sum + (c.insights?.reach || 0), 0);
+  const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+  const activeCampaigns = state.campaigns.filter(c => c.status === 'ACTIVE').length;
+
+  if (state.loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-3 border-primary/20 border-t-primary animate-spin" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading Meta Ads Manager...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render tool content if a tool is selected
+  if (activeTool) {
+    return (
+      <div className="flex flex-col h-full">
+        <ToolHeader
+          toolName={activeTool}
+          onBack={() => setActiveTool(null)}
+          onRefresh={loadDashboardData}
+          isRefreshing={isRefreshing}
+        />
+        <div className="flex-1 overflow-auto p-6">
+          {activeTool === 'ab-tests' && <ABTestManager onRefresh={loadDashboardData} />}
+          {activeTool === 'automation' && <AutomationRulesManager onRefresh={loadDashboardData} />}
+          {activeTool === 'creative' && <CreativeHub onRefresh={loadDashboardData} />}
+          {activeTool === 'capi' && <ConversionsAPIManager onRefresh={loadDashboardData} />}
+          {activeTool === 'compliance' && <ComplianceCenter onRefresh={loadDashboardData} />}
+          {activeTool === 'sdk' && <SDKToolbox onRefresh={loadDashboardData} />}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-20 bg-background border-b">
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left: Title & Account */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                  <Megaphone className="h-4 w-4" />
+                </div>
+                <div>
+                  <h1 className="text-base font-semibold leading-none">Meta Ads Manager</h1>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <Facebook className="w-3 h-3 text-blue-500" />
+                    <Instagram className="w-3 h-3 text-pink-500" />
+                    {/* Business Selector */}
+                    {availableBusinesses.length > 1 ? (
+                      <div className="relative" data-business-selector>
+                        <button
+                          onClick={() => setShowBusinessSelector(!showBusinessSelector)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-muted"
+                        >
+                          <Building2 className="w-3 h-3" />
+                          <span className="max-w-[120px] truncate">{activeBusiness?.name || 'Select'}</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {showBusinessSelector && (
+                          <div className="absolute top-full left-0 mt-1 w-56 bg-popover border rounded-lg shadow-lg z-50 p-1.5">
+                            <p className="text-xs font-medium text-muted-foreground px-2 py-1.5">Business Portfolios</p>
+                            {availableBusinesses.map((business) => (
+                              <button
+                                key={business.id}
+                                onClick={() => handleSwitchBusiness(business.id)}
+                                disabled={isSwitchingBusiness}
+                                className={cn(
+                                  "w-full flex items-center justify-between px-2 py-2 text-left text-sm rounded-md hover:bg-muted transition-colors",
+                                  business.id === activeBusiness?.id && "bg-muted"
+                                )}
+                              >
+                                <div>
+                                  <p className="font-medium text-sm">{business.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {business.adAccounts?.length || 0} ad accounts
+                                  </p>
+                                </div>
+                                {business.id === activeBusiness?.id ? (
+                                  <Check className="w-4 h-4 text-primary" />
+                                ) : isSwitchingBusiness ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : null}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {activeBusiness?.name || state.adAccount?.name || 'Ad Account'}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <span className="text-xs text-muted-foreground">{state.adAccount?.currency || 'USD'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+              {/* Date Selector */}
+              <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+                <SelectTrigger className="w-[140px] h-9 text-sm">
+                  <Calendar className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_PRESETS.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Tools Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-2">
+                    <MoreHorizontal className="w-4 h-4" />
+                    Tools
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setActiveTool('ab-tests')} className="gap-2">
+                    <FlaskConical className="w-4 h-4" />
+                    A/B Tests
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTool('automation')} className="gap-2">
+                    <Zap className="w-4 h-4" />
+                    Automation Rules
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTool('creative')} className="gap-2">
+                    <Image className="w-4 h-4" />
+                    Creative Hub
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setActiveTool('capi')} className="gap-2">
+                    <Server className="w-4 h-4" />
+                    Conversions API
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTool('compliance')} className="gap-2">
+                    <Shield className="w-4 h-4" />
+                    Compliance
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTool('sdk')} className="gap-2">
+                    <Wrench className="w-4 h-4" />
+                    SDK Tools
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Refresh */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={loadDashboardData}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+              </Button>
+
+              {/* Create */}
+              <Button
+                size="sm"
+                className="h-9 gap-2 text-white"
+                style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%)' }}
+                onClick={() => {
+                  setActiveTab('campaigns');
+                  setShowCreateCampaign(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Create
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Connection Banner */}
+      {!isConnected && (
+        <div className="mx-6 mt-4 flex items-center justify-between gap-4 px-4 py-3 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-950/30 dark:border-sky-800">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+            <div>
+              <p className="text-sm font-medium">Meta Ads Not Connected</p>
+              <p className="text-xs text-muted-foreground">Connect your Meta Business account to manage campaigns.</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="h-9 bg-sky-600 hover:bg-sky-700"
+            onClick={() => window.location.href = '/settings?tab=accounts'}
+          >
+            <Facebook className="w-4 h-4 mr-2" />
+            Connect Now
+          </Button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            {/* Tab Navigation - Clean & Professional */}
+            <div className="bg-card border rounded-xl p-1.5 shadow-sm">
+              <TabsList className="grid w-full grid-cols-5 bg-transparent gap-1.5 h-auto">
+                <TabsTrigger
+                  value="dashboard"
+                  className={cn(
+                    "flex items-center justify-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                    activeTab === 'dashboard'
+                      ? "bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="hidden md:inline">Dashboard</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="campaigns"
+                  className={cn(
+                    "flex items-center justify-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                    activeTab === 'campaigns'
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Megaphone className="w-4 h-4" />
+                  <span className="hidden md:inline">Campaigns</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="audiences"
+                  className={cn(
+                    "flex items-center justify-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                    activeTab === 'audiences'
+                      ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Users className="w-4 h-4" />
+                  <span className="hidden md:inline">Audiences</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="reports"
+                  className={cn(
+                    "flex items-center justify-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                    activeTab === 'reports'
+                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <FileBarChart className="w-4 h-4" />
+                  <span className="hidden md:inline">Reports</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="settings"
+                  className={cn(
+                    "flex items-center justify-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-all duration-200",
+                    activeTab === 'settings'
+                      ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-md"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden md:inline">Settings</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Dashboard Tab */}
+            <TabsContent value="dashboard" className="space-y-6 mt-0">
+              {/* Metrics Row */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <MetricCard
+                  label="Total Spend"
+                  value={`$${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  icon={DollarSign}
+                  change={12.5}
+                  color="teal"
+                />
+                <MetricCard
+                  label="Impressions"
+                  value={formatNumber(totalImpressions)}
+                  icon={Eye}
+                  change={8.2}
+                  color="blue"
+                />
+                <MetricCard
+                  label="Reach"
+                  value={formatNumber(totalReach)}
+                  icon={Users}
+                  change={5.3}
+                  color="purple"
+                />
+                <MetricCard
+                  label="Clicks"
+                  value={formatNumber(totalClicks)}
+                  icon={MousePointerClick}
+                  change={15.3}
+                  color="amber"
+                />
+                <MetricCard
+                  label="CTR"
+                  value={`${avgCTR.toFixed(2)}%`}
+                  icon={Percent}
+                  change={2.1}
+                  color="teal"
+                />
+              </div>
+
+              {/* Main Dashboard Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Campaign Performance */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base font-medium">Campaign Performance</CardTitle>
+                        <CardDescription className="text-xs">Top performing campaigns</CardDescription>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setActiveTab('campaigns')} className="h-8 text-xs gap-1">
+                        View All <ChevronRight className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {state.campaigns.length > 0 ? (
+                      <div className="space-y-2">
+                        {state.campaigns.slice(0, 5).map((campaign) => (
+                          <CampaignRow key={campaign.id} campaign={campaign} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState
+                        icon={Megaphone}
+                        title="No campaigns yet"
+                        description="Create your first campaign to start advertising"
+                        action={
+                          <Button size="sm" onClick={() => { setActiveTab('campaigns'); setShowCreateCampaign(true); }} className="mt-4 h-9">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Campaign
+                          </Button>
+                        }
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions & Status */}
+                <div className="space-y-6">
+                  {/* Quick Actions */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-medium">Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <QuickAction
+                        icon={Megaphone}
+                        label="Create Campaign"
+                        onClick={() => { setActiveTab('campaigns'); setShowCreateCampaign(true); }}
+                      />
+                      <QuickAction
+                        icon={Users}
+                        label="Build Audience"
+                        onClick={() => setActiveTab('audiences')}
+                      />
+                      <QuickAction
+                        icon={FileBarChart}
+                        label="View Reports"
+                        onClick={() => setActiveTab('reports')}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Account Summary */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-medium">Account Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <SummaryItem label="Active Campaigns" value={activeCampaigns} />
+                        <SummaryItem label="Total Ad Sets" value={state.adSets.length} />
+                        <SummaryItem label="Active Ads" value={state.ads.filter(a => a.status === 'ACTIVE').length} />
+                        <SummaryItem label="Audiences" value={state.audiences.length} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Campaigns Tab */}
+            <TabsContent value="campaigns" className="mt-0">
+              <CampaignManager
+                campaigns={state.campaigns}
+                adSets={state.adSets}
+                ads={state.ads}
+                onRefresh={loadDashboardData}
+                showCreate={showCreateCampaign}
+                onShowCreateChange={setShowCreateCampaign}
+              />
+            </TabsContent>
+
+            {/* Audiences Tab */}
+            <TabsContent value="audiences" className="mt-0">
+              <AudienceManager
+                audiences={state.audiences}
+                onRefresh={loadDashboardData}
+              />
+            </TabsContent>
+
+            {/* Reports Tab */}
+            <TabsContent value="reports" className="mt-0">
+              <div className="space-y-6">
+                <AdsAnalytics
+                  campaigns={state.campaigns}
+                  adSets={state.adSets}
+                  ads={state.ads}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="mt-0">
+              <SettingsPanel onSelectTool={(tool) => setActiveTool(tool)} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============= Helper Components =============
+
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  change,
+  color = 'teal',
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  change: number;
+  color?: 'teal' | 'blue' | 'purple' | 'amber';
+}) {
+  const colorClasses = {
+    teal: 'from-teal-500 to-teal-600',
+    blue: 'from-blue-500 to-blue-600',
+    purple: 'from-purple-500 to-purple-600',
+    amber: 'from-amber-500 to-amber-600',
+  };
+  const isPositive = change >= 0;
+  return (
+    <Card className="border hover:shadow-md transition-shadow">
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className={cn("p-1.5 rounded-lg bg-gradient-to-br text-white", colorClasses[color])}>
+            <Icon className="w-3.5 h-3.5" />
+          </div>
+          <span className={cn(
+            "text-xs font-medium px-1.5 py-0.5 rounded",
+            isPositive
+              ? "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30"
+              : "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30"
+          )}>
+            {isPositive ? '↑' : '↓'} {Math.abs(change)}%
+          </span>
+        </div>
+        <p className="text-lg font-bold tracking-tight">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CampaignRow({ campaign }: { campaign: Campaign }) {
+  const statusColors = {
+    ACTIVE: 'bg-green-500',
+    PAUSED: 'bg-amber-500',
+    DELETED: 'bg-red-500',
+    ARCHIVED: 'bg-gray-400',
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={cn("w-2 h-2 rounded-full", statusColors[campaign.status])} />
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{campaign.name}</p>
+          <p className="text-xs text-muted-foreground">{campaign.objective.replace('OUTCOME_', '')}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-6 text-right">
+        <div className="hidden sm:block">
+          <p className="text-sm font-medium">${(campaign.insights?.spend || 0).toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">Spend</p>
+        </div>
+        <div className="hidden md:block">
+          <p className="text-sm font-medium">{formatNumber(campaign.insights?.impressions || 0)}</p>
+          <p className="text-xs text-muted-foreground">Impressions</p>
+        </div>
+        <div>
+          <p className="text-sm font-medium">{formatNumber(campaign.insights?.clicks || 0)}</p>
+          <p className="text-xs text-muted-foreground">Clicks</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickAction({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+    >
+      <div className="p-2 rounded-lg bg-muted">
+        <Icon className="w-4 h-4 text-muted-foreground" />
+      </div>
+      <span className="text-sm font-medium">{label}</span>
+      <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+    </button>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b last:border-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium">{value}</span>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="p-4 rounded-full bg-muted mb-3">
+        <Icon className="w-6 h-6 text-muted-foreground" />
+      </div>
+      <h3 className="text-sm font-medium mb-1">{title}</h3>
+      <p className="text-xs text-muted-foreground max-w-[200px]">{description}</p>
+      {action}
+    </div>
+  );
+}
+
+function ToolHeader({
+  toolName,
+  onBack,
+  onRefresh,
+  isRefreshing,
+}: {
+  toolName: string;
+  onBack: () => void;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+}) {
+  const toolLabels: Record<string, { label: string; icon: React.ElementType }> = {
+    'ab-tests': { label: 'A/B Tests', icon: FlaskConical },
+    'automation': { label: 'Automation Rules', icon: Zap },
+    'creative': { label: 'Creative Hub', icon: Image },
+    'capi': { label: 'Conversions API', icon: Server },
+    'compliance': { label: 'Compliance Center', icon: Shield },
+    'sdk': { label: 'SDK Toolbox', icon: Wrench },
+  };
+
+  const tool = toolLabels[toolName] || { label: toolName, icon: Settings };
+  const Icon = tool.icon;
+
+  return (
+    <header className="sticky top-0 z-20 bg-background border-b">
+      <div className="px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack} className="h-8 gap-2">
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            Back
+          </Button>
+          <div className="h-6 w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{tool.label}</span>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="h-8" onClick={onRefresh} disabled={isRefreshing}>
+          <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+        </Button>
+      </div>
+    </header>
+  );
+}
+
+function SettingsPanel({ onSelectTool }: { onSelectTool: (tool: string) => void }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <SettingsCard
+        icon={Server}
+        title="Conversions API"
+        description="Configure server-side event tracking"
+        iconColor="bg-gradient-to-br from-teal-500 to-teal-600"
+        onClick={() => onSelectTool('capi')}
+      />
+      <SettingsCard
+        icon={Shield}
+        title="Compliance"
+        description="Ad policy and compliance center"
+        iconColor="bg-gradient-to-br from-blue-500 to-blue-600"
+        onClick={() => onSelectTool('compliance')}
+      />
+      <SettingsCard
+        icon={Wrench}
+        title="SDK Tools"
+        description="Developer tools and debugging"
+        iconColor="bg-gradient-to-br from-purple-500 to-purple-600"
+        onClick={() => onSelectTool('sdk')}
+      />
+      <SettingsCard
+        icon={Building2}
+        title="Business Settings"
+        description="Manage business portfolio"
+        iconColor="bg-gradient-to-br from-amber-500 to-amber-600"
+        onClick={() => window.location.href = '/settings?tab=accounts'}
+      />
+      <SettingsCard
+        icon={Users}
+        title="Team Access"
+        description="Manage team permissions"
+        iconColor="bg-gradient-to-br from-sky-500 to-sky-600"
+        onClick={() => window.location.href = '/settings?tab=team'}
+      />
+      <SettingsCard
+        icon={AlertCircle}
+        title="Notifications"
+        description="Alert and notification preferences"
+        iconColor="bg-gradient-to-br from-rose-500 to-rose-600"
+        onClick={() => window.location.href = '/settings?tab=notifications'}
+      />
+    </div>
+  );
+}
+
+function SettingsCard({
+  icon: Icon,
+  title,
+  description,
+  iconColor = "bg-muted",
+  onClick,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  iconColor?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <Card
+      className="hover:border-teal-500/40 hover:shadow-md transition-all duration-200 cursor-pointer group"
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className={cn("p-2.5 rounded-lg text-white", iconColor)}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{title}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

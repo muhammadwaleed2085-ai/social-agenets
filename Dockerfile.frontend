@@ -1,0 +1,89 @@
+# Frontend Dockerfile
+# Multi-stage build for Content Creator Next.js Frontend
+
+# ============================================================================
+# Stage 1: Dependencies - Install node modules
+# ============================================================================
+FROM node:22-alpine AS deps
+
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy package files for dependency installation
+COPY package.json package-lock.json ./
+
+# Install dependencies strictly from lock file
+# Added sharp for image optimization
+RUN npm ci --legacy-peer-deps && npm install sharp
+
+# ============================================================================
+# Stage 2: Builder - Build the Next.js application
+# ============================================================================
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Set environment for build
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+# Build arguments passed from Render
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_PYTHON_BACKEND_URL
+ARG NEXT_PUBLIC_USE_PYTHON_BACKEND_ALL
+ARG NEXT_PUBLIC_APP_URL
+
+# Make them available as environment variables during build
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+ENV NEXT_PUBLIC_PYTHON_BACKEND_URL=${NEXT_PUBLIC_PYTHON_BACKEND_URL}
+ENV NEXT_PUBLIC_USE_PYTHON_BACKEND_ALL=${NEXT_PUBLIC_USE_PYTHON_BACKEND_ALL}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+
+# Build the application
+RUN npm run build
+
+# ============================================================================
+# Stage 3: Runner - Production runtime
+# ============================================================================
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy public folder
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# Run the application
+CMD ["node", "server.js"]

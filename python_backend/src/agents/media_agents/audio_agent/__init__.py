@@ -1,0 +1,63 @@
+"""Audio Agent - Main Export"""
+from .service import (
+    generate_speech,
+    generate_music,
+    generate_sound_effects,
+    get_voices,
+    clone_voice,
+    design_voice,
+    save_designed_voice,
+    generate_dialog,
+)
+from .schemas import (
+    TTSRequest,
+    TTSResponse,
+    MusicRequest,
+    MusicResponse,
+    SoundEffectsRequest,
+    SoundEffectsResponse,
+    VoiceCloningRequest,
+    VoiceCloningResponse,
+    VoiceDesignRequest,
+    VoiceDesignResponse,
+    VoiceDesignPreview,
+    DialogRequest,
+    DialogResponse,
+    DialogInput,
+    Voice,
+    VoicesResponse,
+    TTS_MODELS,
+    OUTPUT_FORMATS,
+)
+
+__all__ = [
+    # Service functions
+    "generate_speech",
+    "generate_music",
+    "generate_sound_effects",
+    "get_voices",
+    "clone_voice",
+    "design_voice",
+    "save_designed_voice",
+    "generate_dialog",
+    # Schemas
+    "TTSRequest",
+    "TTSResponse",
+    "MusicRequest",
+    "MusicResponse",
+    "SoundEffectsRequest",
+    "SoundEffectsResponse",
+    "VoiceCloningRequest",
+    "VoiceCloningResponse",
+    "VoiceDesignRequest",
+    "VoiceDesignResponse",
+    "VoiceDesignPreview",
+    "DialogRequest",
+    "DialogResponse",
+    "DialogInput",
+    "Voice",
+    "VoicesResponse",
+    "TTS_MODELS",
+    "OUTPUT_FORMATS",
+]
+
