@@ -526,16 +526,15 @@ export function MediaGallery({
           formData.append('chunked', 'true');
         }
 
-        // Determine upload endpoint based on file type
+        // Determine upload endpoint based on file type (use Next.js proxy paths)
         const uploadEndpoint = isImage
-          ? '/api/v1/cloudinary/upload/image'
+          ? '/api/cloudinary/upload/image'
           : isVideo
-            ? '/api/v1/cloudinary/upload/video'
-            : '/api/v1/cloudinary/upload/audio';
+            ? '/api/cloudinary/upload/video'
+            : '/api/cloudinary/upload/audio';
 
-        const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:8000';
-
-        const uploadResponse = await fetch(`${pythonBackendUrl}${uploadEndpoint}`, {
+        // Use the Next.js proxy path (proxied to Python backend)
+        const uploadResponse = await fetch(uploadEndpoint, {
           method: 'POST',
           body: formData,
         });

@@ -100,14 +100,14 @@ export function useMediaLibrary() {
       formData.append('folder', 'generated');
       formData.append('tags', [...tags, `workspace:${workspaceId}`, 'generated'].join(','));
 
-      const pythonBackendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'http://localhost:8000';
+      // Use the Next.js proxy path (proxied to Python backend)
       const uploadEndpoint = type === 'image'
-        ? '/api/v1/cloudinary/upload/image'
+        ? '/api/cloudinary/upload/image'
         : type === 'video'
-          ? '/api/v1/cloudinary/upload/video'
-          : '/api/v1/cloudinary/upload/audio';
+          ? '/api/cloudinary/upload/video'
+          : '/api/cloudinary/upload/audio';
 
-      const uploadResponse = await fetch(`${pythonBackendUrl}${uploadEndpoint}`, {
+      const uploadResponse = await fetch(uploadEndpoint, {
         method: 'POST',
         body: formData,
       });

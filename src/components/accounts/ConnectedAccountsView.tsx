@@ -14,6 +14,7 @@ import { PLATFORMS } from '@/constants'
 import type { Platform } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { credentialsApi } from '@/lib/python-backend'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 interface ConnectedAccountsViewProps {
   connectedAccounts: Record<Platform, boolean>
@@ -199,26 +200,43 @@ const ConnectedAccountsView: React.FC<ConnectedAccountsViewProps> = ({
 
     try {
       // Use OAuth 1.0a for Twitter/X (required for media upload)
-      // Other platforms use OAuth 2.0
-      const oauthEndpoint = platform === 'twitter'
+      // Other platforms use OAuth 2.0 via unified auth endpoint
+      const isTwitter = platform === 'twitter'
+      const oauthEndpoint = isTwitter
         ? '/api/twitter/auth'  // OAuth 1.0a
         : `/api/auth/oauth/${platform}/initiate`  // OAuth 2.0
 
+      // For non-Twitter platforms, we need auth token
+      let fetchOptions: RequestInit = { method: 'POST' }
+
+      if (!isTwitter) {
+        const supabase = getSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (!session?.access_token) {
+          throw new Error('Please log in to connect your accounts')
+        }
+
+        fetchOptions = {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      }
+
       // POST to initiate OAuth
-      const response = await fetch(oauthEndpoint, {
-        method: 'POST',
-      })
+      const response = await fetch(oauthEndpoint, fetchOptions)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || 'Failed to initiate connection'
+        const errorMessage = errorData.error || errorData.detail || 'Failed to initiate connection'
 
         // If workspace initialization failed, retry once after a short delay
         if (response.status === 500 && errorMessage.includes('initialize workspace')) {
           await new Promise(resolve => setTimeout(resolve, 1000))
-          const retryResponse = await fetch(oauthEndpoint, {
-            method: 'POST',
-          })
+          const retryResponse = await fetch(oauthEndpoint, fetchOptions)
           if (!retryResponse.ok) {
             const retryErrorData = await retryResponse.json().catch(() => ({}))
             throw new Error(retryErrorData.error || 'Failed to initiate connection after retry')
