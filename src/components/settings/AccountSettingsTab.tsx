@@ -389,18 +389,10 @@ const AccountSettingsTab: React.FC = () => {
           const response = await fetch('/api/credentials/status')
           if (!response.ok) throw new Error('Failed to load status')
           const data = await response.json()
-          const mappedStatus: Record<Platform, any> = {
-            twitter: { isConnected: data.twitter?.connected ?? false, ...data.twitter },
-            linkedin: { isConnected: data.linkedin?.connected ?? false, ...data.linkedin },
-            facebook: { isConnected: data.facebook?.connected ?? false, ...data.facebook },
-            instagram: { isConnected: data.instagram?.connected ?? false, ...data.instagram },
-            tiktok: { isConnected: data.tiktok?.connected ?? false, ...data.tiktok },
-            youtube: { isConnected: data.youtube?.connected ?? false, ...data.youtube },
-          }
-          setStatusInfo(mappedStatus)
+          setStatusInfo(data)
           setConnectedAccounts(
             Object.fromEntries(
-              Object.entries(mappedStatus).map(([p, info]: [string, any]) => [
+              Object.entries(data).map(([p, info]: [string, any]) => [
                 p,
                 info.isConnected,
               ])
@@ -436,24 +428,16 @@ const AccountSettingsTab: React.FC = () => {
             const response = await fetch('/api/credentials/status')
             if (!response.ok) throw new Error('Failed to load status')
             const data = await response.json()
-            const mappedStatus: Record<Platform, any> = {
-              twitter: { isConnected: data.twitter?.connected ?? false, ...data.twitter },
-              linkedin: { isConnected: data.linkedin?.connected ?? false, ...data.linkedin },
-              facebook: { isConnected: data.facebook?.connected ?? false, ...data.facebook },
-              instagram: { isConnected: data.instagram?.connected ?? false, ...data.instagram },
-              tiktok: { isConnected: data.tiktok?.connected ?? false, ...data.tiktok },
-              youtube: { isConnected: data.youtube?.connected ?? false, ...data.youtube },
-            }
 
             // Check if the platform we're looking for is now connected
-            const platformConnected = mappedStatus[successPlatform]?.isConnected
+            const platformConnected = data[successPlatform]?.isConnected
 
             if (platformConnected) {
               // Found credentials! Update state and we're done
-              setStatusInfo(mappedStatus)
+              setStatusInfo(data)
               setConnectedAccounts(
                 Object.fromEntries(
-                  Object.entries(mappedStatus).map(([p, info]: [string, any]) => [
+                  Object.entries(data).map(([p, info]: [string, any]) => [
                     p,
                     info.isConnected,
                   ])

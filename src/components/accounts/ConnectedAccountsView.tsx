@@ -56,15 +56,9 @@ const ConnectedAccountsView: React.FC<ConnectedAccountsViewProps> = ({
   }
 
   // Helper function to map Python backend response to expected format
+  // Backend now returns isConnected directly, so we just pass through
   const mapCredentialsStatus = (data: any): Record<Platform, any> => {
-    return {
-      twitter: { isConnected: data.twitter?.connected ?? false, ...data.twitter },
-      linkedin: { isConnected: data.linkedin?.connected ?? false, ...data.linkedin },
-      facebook: { isConnected: data.facebook?.connected ?? false, ...data.facebook },
-      instagram: { isConnected: data.instagram?.connected ?? false, ...data.instagram },
-      tiktok: { isConnected: data.tiktok?.connected ?? false, ...data.tiktok },
-      youtube: { isConnected: data.youtube?.connected ?? false, ...data.youtube },
-    }
+    return data
   }
 
   useEffect(() => {
