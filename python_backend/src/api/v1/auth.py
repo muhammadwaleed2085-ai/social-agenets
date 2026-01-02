@@ -288,7 +288,10 @@ async def _save_social_account(
     account_id: str,
     account_name: str,
     credentials: dict,
-    expires_at: datetime = None
+    expires_at: datetime = None,
+    page_id: str = None,
+    page_name: str = None,
+    username: str = None
 ) -> None:
     """
     Save or update social account credentials with token expiration tracking.
@@ -300,6 +303,9 @@ async def _save_social_account(
         account_name: Display name for the account
         credentials: OAuth credentials dict
         expires_at: Token expiration datetime (UTC)
+        page_id: Facebook/Instagram page ID (optional)
+        page_name: Facebook/Instagram page name (optional)
+        username: Username for display (optional, used by Instagram/Twitter)
     """
     now = datetime.now(timezone.utc)
     
@@ -316,6 +322,14 @@ async def _save_social_account(
         "last_error_message": None,
         "updated_at": now.isoformat()
     }
+    
+    # Add page info if provided (for Facebook/Instagram)
+    if page_id:
+        data["page_id"] = page_id
+    if page_name:
+        data["page_name"] = page_name
+    if username:
+        data["username"] = username
     
     # Add token expiration if provided
     if expires_at:
@@ -382,7 +396,9 @@ async def _handle_facebook_callback(code: str, workspace_id: str, callback_url: 
             account_id=selected_page["id"],
             account_name=selected_page["name"],
             credentials=credentials,
-            expires_at=expires_at
+            expires_at=expires_at,
+            page_id=selected_page["id"],
+            page_name=selected_page["name"]
         )
         
         logger.info(f"Facebook connected - workspace: {workspace_id}, expires: {expires_at.isoformat()}")
@@ -440,7 +456,8 @@ async def _handle_instagram_callback(code: str, workspace_id: str, callback_url:
             account_id=selected_account["id"],
             account_name=selected_account.get("username", "Instagram Account"),
             credentials=credentials,
-            expires_at=expires_at
+            expires_at=expires_at,
+            username=selected_account.get("username")
         )
         
         logger.info(f"Instagram connected - workspace: {workspace_id}, expires: {expires_at.isoformat()}")
@@ -499,7 +516,8 @@ async def _handle_twitter_callback(code: str, workspace_id: str, callback_url: s
             account_id=user_data["id"],
             account_name=f"@{user_data['username']}",
             credentials=credentials,
-            expires_at=expires_at
+            expires_at=expires_at,
+            username=user_data['username']
         )
         
         logger.info(f"Twitter connected - workspace: {workspace_id}, expires: {expires_at.isoformat()}")
