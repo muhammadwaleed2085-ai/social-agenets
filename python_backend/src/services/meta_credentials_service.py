@@ -78,7 +78,7 @@ class MetaCredentialsService:
                     result = client.table("social_accounts").select(
                         "id, platform, credentials_encrypted, page_id, page_name, "
                         "account_id, account_name, username, expires_at, access_token_expires_at, "
-                        "business_id, is_connected"
+                        "is_connected"
                     ).eq("workspace_id", workspace_id).eq("platform", platform).eq("is_connected", True).limit(1).execute()
                     
                     # Check if we got any results
@@ -127,8 +127,9 @@ class MetaCredentialsService:
                         "page_id": row.get("page_id") or credentials.get("pageId"),
                         "page_name": row.get("page_name") or credentials.get("pageName"),
                         "page_access_token": credentials.get("pageAccessToken"),
-                        "account_id": row.get("account_id") or credentials.get("adAccountId"),
-                        "account_name": row.get("account_name") or credentials.get("adAccountName"),
+                        # Ad account ID - prioritize credentials since row.account_id is page ID
+                        "account_id": credentials.get("adAccountId"),
+                        "account_name": credentials.get("adAccountName"),
                         "ig_user_id": credentials.get("igUserId"),
                         "username": row.get("username") or credentials.get("username"),
                         "expires_at": str(expires_at) if expires_at else None,
@@ -136,7 +137,7 @@ class MetaCredentialsService:
                         "expires_soon": expires_soon,
                         "currency": credentials.get("currency"),
                         "timezone": credentials.get("timezone"),
-                        "business_id": row.get("business_id") or credentials.get("businessId"),
+                        "business_id": credentials.get("businessId"),
                         "business_name": credentials.get("businessName"),
                         "platform": platform,
                         "social_account_id": row.get("id"),
