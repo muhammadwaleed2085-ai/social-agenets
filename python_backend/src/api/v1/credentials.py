@@ -114,6 +114,53 @@ async def get_connection_status(
         raise HTTPException(status_code=500, detail="Failed to check status")
 
 
+@router.delete("/{platform}/disconnect")
+async def disconnect_platform(
+    platform: Platform,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    DELETE /api/v1/credentials/{platform}/disconnect
+    Disconnect a social platform by setting is_connected to False.
+    """
+    try:
+        workspace_id = user.get("workspaceId")
+        user_role = user.get("role")
+        
+        if not workspace_id:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        
+        # Only admins can disconnect
+        if user_role != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required")
+        
+        if platform not in VALID_PLATFORMS:
+            raise HTTPException(status_code=400, detail=f"Invalid platform: {platform}")
+        
+        supabase = get_supabase_admin_client()
+        
+        # Update is_connected to False for this platform
+        result = supabase.table("social_accounts").update({
+            "is_connected": False
+        }).eq("workspace_id", workspace_id).eq("platform", platform).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail=f"No connection found for {platform}")
+        
+        logger.info(f"Disconnected {platform} for workspace {workspace_id}")
+        
+        return {
+            "success": True,
+            "message": f"{platform.capitalize()} disconnected successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error disconnecting {platform}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to disconnect platform")
+
+
 @router.get("/meta/status")
 async def get_meta_connection_status(
     user: Dict[str, Any] = Depends(get_current_user)
