@@ -105,6 +105,25 @@ async def get_connection_status(
                     "isConnected": False
                 }
         
+        # For Facebook, also check ads capability if connected
+        if status.get("facebook", {}).get("isConnected"):
+            try:
+                logger.info(f"Checking ads capability for workspace {workspace_id}")
+                ads_capability = await MetaCredentialsService.check_ads_capability(workspace_id)
+                
+                status["facebook"]["canRunAds"] = ads_capability.get("has_ads_access", False)
+                status["facebook"]["adAccountId"] = ads_capability.get("ad_account_id")
+                status["facebook"]["adAccountName"] = ads_capability.get("ad_account_name")
+                
+                if not ads_capability.get("has_ads_access"):
+                    status["facebook"]["missingForAds"] = ads_capability.get("missing_permissions", [])
+                
+                logger.info(f"Ads capability: {ads_capability}")
+            except Exception as ads_error:
+                logger.error(f"Error checking ads capability: {ads_error}")
+                status["facebook"]["canRunAds"] = False
+                status["facebook"]["missingForAds"] = ["Error checking ads capability"]
+        
         return status
         
     except HTTPException:
