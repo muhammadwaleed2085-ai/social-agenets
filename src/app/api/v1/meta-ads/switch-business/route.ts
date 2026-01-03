@@ -12,16 +12,28 @@ const PYTHON_BACKEND_URL = getPythonBackendUrl();
  */
 export async function GET(request: NextRequest) {
     try {
+        console.log('[switch-business] Creating Supabase client...');
         const supabase = await createServerClient();
-        const { data: { session } } = await supabase.auth.getSession();
+
+        console.log('[switch-business] Getting session...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+            console.error('[switch-business] Session error:', sessionError);
+        }
+
+        console.log('[switch-business] Session exists:', !!session);
+        console.log('[switch-business] Access token exists:', !!session?.access_token);
 
         if (!session?.access_token) {
+            console.error('[switch-business] No session or access token');
             return NextResponse.json(
                 { error: 'Not authenticated', availableBusinesses: [], activeBusiness: null },
                 { status: 401 }
             );
         }
 
+        console.log('[switch-business] Calling backend:', PYTHON_BACKEND_URL);
         const backendResponse = await fetch(`${PYTHON_BACKEND_URL}/api/v1/meta-ads/switch-business`, {
             method: 'GET',
             headers: {
@@ -30,11 +42,14 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        console.log('[switch-business] Backend response status:', backendResponse.status);
         const data = await backendResponse.json();
+        console.log('[switch-business] Backend response:', JSON.stringify(data).substring(0, 200));
+
         return NextResponse.json(data, { status: backendResponse.status });
 
     } catch (error) {
-        console.error('Error in meta-ads switch-business GET:', error);
+        console.error('[switch-business] Error:', error);
         return NextResponse.json(
             { error: 'Failed to fetch business info', availableBusinesses: [], activeBusiness: null },
             { status: 500 }
@@ -70,7 +85,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(data, { status: backendResponse.status });
 
     } catch (error) {
-        console.error('Error in meta-ads switch-business POST:', error);
+        console.error('[switch-business] POST Error:', error);
         return NextResponse.json({ error: 'Failed to switch business' }, { status: 500 });
     }
 }
