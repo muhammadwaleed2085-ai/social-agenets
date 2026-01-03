@@ -121,7 +121,9 @@ export default function MetaAdsManager() {
 
   const fetchBusinesses = async () => {
     try {
-      const response = await fetch('/api/v1/meta-ads/switch-business');
+      const response = await fetch('/api/v1/meta-ads/switch-business', {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setAvailableBusinesses(data.availableBusinesses || []);
@@ -137,6 +139,7 @@ export default function MetaAdsManager() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ businessId }),
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
@@ -157,7 +160,9 @@ export default function MetaAdsManager() {
 
   const checkConnectionStatus = async () => {
     try {
-      const response = await fetch('/api/v1/meta-ads/status');
+      const response = await fetch('/api/v1/meta-ads/status', {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setIsConnected(data.isConnected);
@@ -181,8 +186,8 @@ export default function MetaAdsManager() {
     setIsRefreshing(true);
     try {
       const [campaignsRes, audiencesRes] = await Promise.all([
-        fetch('/api/v1/meta-ads/campaigns'),
-        fetch('/api/v1/meta-ads/audiences'),
+        fetch('/api/v1/meta-ads/campaigns', { credentials: 'include' }),
+        fetch('/api/v1/meta-ads/audiences', { credentials: 'include' }),
       ]);
 
       if (campaignsRes.ok) {

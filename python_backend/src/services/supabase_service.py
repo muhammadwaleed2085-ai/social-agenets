@@ -303,10 +303,13 @@ async def ensure_user_workspace(
         # Check if user already has a workspace
         user_result = client.table("users").select(
             "workspace_id, role"
-        ).eq("id", user_id).maybeSingle().execute()
+        ).eq("id", user_id).limit(1).execute()
         
-        if user_result.data and user_result.data.get("workspace_id"):
-            return user_result.data["workspace_id"]
+        # Check if we got a result (limit(1) returns a list, so check first item)
+        if user_result.data and len(user_result.data) > 0:
+            existing_user = user_result.data[0]
+            if existing_user.get("workspace_id"):
+                return existing_user["workspace_id"]
         
         # User doesn't have workspace - create one
         workspace_name = f"{user_email.split('@')[0]}'s Workspace" if user_email else "New Workspace"

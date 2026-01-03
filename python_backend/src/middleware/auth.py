@@ -92,16 +92,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if any(path == p or path.startswith(p.rstrip('/') + '/') for p in self.public_paths):
+        
+        # Allow CORS preflight requests (OPTIONS) without authentication
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
+        # Path matching helper: properly handle root "/" without matching all paths
+        def is_public_path(path: str, public_path: str) -> bool:
+            if public_path == "/":
+                return path == "/"  # Root path only matches exactly
+            # For other paths, match exactly or as a prefix followed by /
+            return path == public_path or path.startswith(public_path.rstrip('/') + '/')
+        
+        if any(is_public_path(path, p) for p in self.public_paths):
             return await call_next(request)
         if any(path.startswith(p) for p in OPTIONAL_AUTH_PATHS):
             return await call_next(request)
+        
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Not authenticated"}
             )
+        
         token = auth_header.split(" ", 1)[1]
         try:
             user = await verify_token(token, request)
@@ -112,4 +126,5 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"Auth middleware error: {e}")
             return JSONResponse(status_code=500, content={"detail": "Authentication error"})
+        
         return await call_next(request)
