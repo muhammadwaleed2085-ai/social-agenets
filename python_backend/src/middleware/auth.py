@@ -78,6 +78,7 @@ PUBLIC_PATHS = [
     "/api/v1/providers",
     "/api/v1/workspace/invites/",
     "/api/v1/cloudinary/",  # Allow public access to Cloudinary uploads
+    "/api/v1/media-studio/",  # Media library uses workspace_id for access control
 ]
 
 OPTIONAL_AUTH_PATHS = [

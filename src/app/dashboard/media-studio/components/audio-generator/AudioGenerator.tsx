@@ -28,6 +28,7 @@ import { useMediaLibrary } from '../../hooks/useMediaLibrary';
 import { MediaItem } from '../../types/mediaStudio.types';
 import { AudioNameDialog } from './AudioNameDialog';
 import { AudioWaveform } from '@/components/ui/audio-waveform';
+import { get } from '@/lib/python-backend/client';
 
 // ============================================================================
 // TYPES
@@ -117,8 +118,9 @@ export function AudioGenerator() {
     const fetchLibraryAudio = useCallback(async () => {
         if (!workspaceId) return;
         try {
-            const response = await fetch(`/api/media-studio/library?workspace_id=${workspaceId}&type=audio&limit=20`);
-            const data = await response.json();
+            const data = await get<{ items: MediaItem[] }>(
+                `/media-studio/library?workspace_id=${workspaceId}&type=audio&limit=20`
+            );
             if (data.items) {
                 setLibraryAudio(data.items);
             }

@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { post } from '@/lib/python-backend/client';
 
 /**
  * Media types supported by the library
@@ -172,38 +173,28 @@ export function useMediaLibrary() {
 
       console.log('Sending to backend:', { workspaceId, userId: user?.id });
 
-      const response = await fetch('/api/media-studio/library', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workspaceId,
-          mediaItem: {
-            type: options.type,
-            source: options.source,
-            url: finalUrl,
-            thumbnailUrl: options.thumbnailUrl,
-            prompt: options.prompt,
-            revisedPrompt: options.revisedPrompt,
-            model: options.model,
-            config: { ...options.config, ...additionalMetadata },
-            metadata: { ...options.metadata, ...additionalMetadata },
-            tags: options.tags,
-            user_id: user?.id,
-          },
-        }),
+      const result = await post<{ data: { id: string } }>('/media-studio/library', {
+        workspaceId,
+        mediaItem: {
+          type: options.type,
+          source: options.source,
+          url: finalUrl,
+          thumbnailUrl: options.thumbnailUrl,
+          prompt: options.prompt,
+          revisedPrompt: options.revisedPrompt,
+          model: options.model,
+          config: { ...options.config, ...additionalMetadata },
+          metadata: { ...options.metadata, ...additionalMetadata },
+          tags: options.tags,
+          user_id: user?.id,
+        },
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to save media');
-      }
-
-      const result = await response.json();
       return result.data?.id || null;
     } catch (error) {
       return null;
     }
-  }, [workspaceId, uploadToCloudinary]);
+  }, [workspaceId, uploadToCloudinary, user?.id]);
 
   /**
    * Create a history entry when generation starts
