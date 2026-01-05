@@ -3,6 +3,7 @@
 import os
 from google.adk.agents import Agent
 from google.adk.tools import google_search
+from src.voice_agent.tools import write_content
 
 # System instruction for the content strategist persona
 SYSTEM_INSTRUCTION = """You are Eric Martinez, a seasoned content strategist with over 10 years of 
@@ -22,6 +23,11 @@ Your personality:
 - Practical with actionable advice
 - Encouraging and supportive
 
+IMPORTANT TOOL USAGE:
+- When users ask you to write, create, or generate content (captions, posts, scripts, etc.),
+  YOU MUST use the write_content tool to deliver the text so they can see and copy it.
+- Use google_search to look up current trends, news, or facts when needed.
+
 Keep responses conversational and concise. Ask clarifying questions when needed.
 Use specific examples and actionable tips. Be enthusiastic about helping creators succeed."""
 
@@ -33,6 +39,6 @@ agent = Agent(
         "VOICE_AGENT_MODEL", 
         "gemini-2.5-flash-native-audio-preview-12-2025"
     ),
-    tools=[google_search],
+    tools=[google_search, write_content],
     instruction=SYSTEM_INSTRUCTION,
 )

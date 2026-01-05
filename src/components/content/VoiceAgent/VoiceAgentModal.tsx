@@ -267,6 +267,35 @@ export function VoiceAgentModal({
             }
           }
 
+          // Handle tool results (e.g., write_content tool)
+          if (adkEvent.actions?.artifactDelta?.parts) {
+            for (const part of adkEvent.actions.artifactDelta.parts) {
+              if (part.text) {
+                console.log('[Voice Live] Tool generated content:', part.text);
+                setHasGeneratedContent(true);
+                onContentGenerated({
+                  type: 'written_content',
+                  platform: 'text',
+                  content: part.text,
+                });
+              }
+            }
+          }
+
+          // Handle function call results directly
+          if (adkEvent.functionResponse) {
+            const response = adkEvent.functionResponse;
+            if (response.name === 'write_content' && response.response?.content) {
+              console.log('[Voice Live] write_content result:', response.response.content);
+              setHasGeneratedContent(true);
+              onContentGenerated({
+                type: 'written_content',
+                platform: 'text',
+                content: response.response.content,
+              });
+            }
+          }
+
         } catch (e) {
           console.error('[Voice Live] Error parsing ADK event:', e);
         }
