@@ -260,7 +260,7 @@ export function RunwayVideoGenerator({
                             onError={handleGenerationError}
                             isGenerating={isGenerating}
                             recentImages={recentImages}
-                            workspaceId={workspaceId}
+                            workspaceId={workspaceId ?? undefined}
                         />
                     )}
 
@@ -270,7 +270,7 @@ export function RunwayVideoGenerator({
                             onError={handleGenerationError}
                             isGenerating={isGenerating}
                             recentVideos={recentVideos}
-                            workspaceId={workspaceId}
+                            workspaceId={workspaceId ?? undefined}
                         />
                     )}
 
@@ -280,7 +280,7 @@ export function RunwayVideoGenerator({
                             onError={handleGenerationError}
                             isGenerating={isGenerating}
                             recentVideos={recentVideos}
-                            workspaceId={workspaceId}
+                            workspaceId={workspaceId ?? undefined}
                             isUpscaleMode={true}
                         />
                     )}
