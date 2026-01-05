@@ -1,4 +1,4 @@
 """Content Strategist Agent - Tools Module"""
-from .browser_tools import get_browser_tools, browser_tools
+# Browser tools removed - Playwright is not available in production
 
-__all__ = ["get_browser_tools", "browser_tools"]
+__all__ = []
