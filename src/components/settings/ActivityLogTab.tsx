@@ -181,8 +181,8 @@ export default function ActivityLogTab() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`px-4 py-2 border rounded-lg flex items-center gap-2 transition-colors ${showFilters || hasFilters
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
           >
             <Filter size={18} />
@@ -283,7 +283,7 @@ export default function ActivityLogTab() {
       )}
 
       {/* Activity List */}
-      <div className="space-y-3">
+      <div className={activities.length === 0 ? "space-y-3" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"}>
         {activities.length === 0 ? (
           <div className="p-12 bg-gray-50 border border-gray-200 rounded-lg text-center">
             <Activity className="mx-auto text-gray-400 mb-3" size={48} />

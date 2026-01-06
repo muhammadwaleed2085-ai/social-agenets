@@ -730,7 +730,8 @@ async def _handle_tiktok_callback(code: str, workspace_id: str, callback_url: st
             account_id=user_data.get("open_id", "unknown"),
             account_name=user_data.get("display_name", "TikTok User"),
             credentials=credentials,
-            expires_at=expires_at
+            expires_at=expires_at,
+            username=user_data.get("display_name")  # Add username for display
         )
         
         logger.info(f"TikTok connected - workspace: {workspace_id}, expires: {expires_at.isoformat()}")
@@ -789,7 +790,8 @@ async def _handle_youtube_callback(code: str, workspace_id: str, callback_url: s
             account_id=channel_data["id"],
             account_name=channel_data.get("title", "YouTube Channel"),
             credentials=credentials,
-            expires_at=expires_at
+            expires_at=expires_at,
+            username=channel_data.get("title")  # Add username for display
         )
         
         logger.info(f"YouTube connected - workspace: {workspace_id}, expires: {expires_at.isoformat()}")
