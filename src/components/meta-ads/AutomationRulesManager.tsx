@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 // Rule execution types with icons - per Meta Ad Rules Engine v24.0 docs
 const EXECUTION_TYPES = [
@@ -309,32 +310,42 @@ export default function AutomationRulesManager({ onRefresh }: AutomationRulesMan
                 body: JSON.stringify({ status: newStatus }),
             });
 
+            const data = await response.json();
             if (response.ok) {
+                toast.success(`Rule ${newStatus === 'ENABLED' ? 'enabled' : 'disabled'} successfully`);
                 setRules(rules.map(r =>
                     r.id === ruleId ? { ...r, status: newStatus } : r
                 ));
+            } else {
+                toast.error(data?.error || data?.detail || 'Failed to update rule');
             }
         } catch (err) {
             console.error('Failed to toggle rule:', err);
+            toast.error('Failed to update rule');
         } finally {
             setUpdatingRuleId(null);
         }
     };
 
     const handleDeleteRule = async (ruleId: string) => {
-        if (!confirm('Are you sure you want to delete this rule?')) return;
+        if (!confirm('Are you sure you want to delete this rule? This action cannot be undone.')) return;
 
         try {
             const response = await fetch(`/api/v1/meta-ads/rules/${ruleId}`, {
                 method: 'DELETE',
             });
 
-            if (response.ok) {
+            if (response.ok || response.status === 204) {
+                toast.success('Rule deleted successfully');
                 setRules(rules.filter(r => r.id !== ruleId));
                 onRefresh?.();
+            } else {
+                const data = await response.json().catch(() => ({}));
+                toast.error(data?.error || data?.detail || 'Failed to delete rule');
             }
         } catch (err) {
             console.error('Failed to delete rule:', err);
+            toast.error('Failed to delete rule');
         }
     };
 

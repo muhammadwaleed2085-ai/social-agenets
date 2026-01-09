@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 // Test variables
 const TEST_VARIABLES = [
@@ -342,11 +343,16 @@ export default function ABTestManager({ onRefresh }: ABTestManagerProps) {
                 body: JSON.stringify({ status: newStatus }),
             });
 
+            const data = await response.json();
             if (response.ok) {
+                toast.success(`Test ${newStatus === 'ACTIVE' ? 'activated' : 'paused'} successfully`);
                 fetchTests();
+            } else {
+                toast.error(data?.error || data?.detail || 'Failed to update test status');
             }
         } catch (err) {
             console.error('Failed to update status:', err);
+            toast.error('Failed to update test status');
         } finally {
             setActionLoading(null);
         }
@@ -363,11 +369,16 @@ export default function ABTestManager({ onRefresh }: ABTestManagerProps) {
                 body: JSON.stringify({ new_name: `${test.name} (Copy)` }),
             });
 
+            const data = await response.json();
             if (response.ok) {
+                toast.success('Test duplicated successfully');
                 fetchTests();
+            } else {
+                toast.error(data?.error || data?.detail || 'Failed to duplicate test');
             }
         } catch (err) {
             console.error('Failed to duplicate:', err);
+            toast.error('Failed to duplicate test');
         } finally {
             setActionLoading(null);
         }
@@ -386,11 +397,16 @@ export default function ABTestManager({ onRefresh }: ABTestManagerProps) {
                 method: 'DELETE',
             });
 
-            if (response.ok) {
+            if (response.ok || response.status === 204) {
+                toast.success('Test canceled successfully');
                 fetchTests();
+            } else {
+                const data = await response.json().catch(() => ({}));
+                toast.error(data?.error || data?.detail || 'Failed to cancel test');
             }
         } catch (err) {
             console.error('Failed to cancel:', err);
+            toast.error('Failed to cancel test');
         } finally {
             setActionLoading(null);
         }

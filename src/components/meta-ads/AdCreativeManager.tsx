@@ -40,6 +40,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { Ad, AdSet, AdFormData, AdCreative, CallToActionType, AdStatus } from '@/types/metaAds';
@@ -276,6 +283,7 @@ export default function AdCreativeManager({ ads, adSets, onRefresh, showCreate, 
               ad={ad}
               adSet={adSets.find(a => a.id === ad.adset_id)}
               onStatusChange={handleStatusChange}
+              onRefresh={onRefresh}
             />
           ))}
         </div>
@@ -326,10 +334,12 @@ function AdCard({
   ad,
   adSet,
   onStatusChange,
+  onRefresh,
 }: {
   ad: Ad;
   adSet?: AdSet;
   onStatusChange: (id: string, status: AdStatus) => void;
+  onRefresh?: () => void;
 }) {
   const statusColors: Record<string, string> = {
     ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -338,6 +348,85 @@ function AdCard({
     DISAPPROVED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     DELETED: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
     ARCHIVED: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
+  };
+
+  const handlePreview = async () => {
+    try {
+      const res = await fetch(`/api/v1/meta-ads/ads/${ad.id}/preview`);
+      const data = await res.json();
+      if (res.ok && data.preview?.previews?.[0]?.body) {
+        const win = window.open('', '_blank', 'width=600,height=800');
+        if (win) {
+          win.document.write(data.preview.previews[0].body);
+        }
+      } else {
+        toast.error(data?.error || 'No preview available');
+      }
+    } catch (err) {
+      console.error('Error getting preview:', err);
+      toast.error('Failed to get ad preview');
+    }
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const res = await fetch(`/api/v1/meta-ads/ads/${ad.id}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_name: `${ad.name} (Copy)` })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Ad duplicated successfully');
+        onRefresh?.();
+      } else {
+        const errorMsg = data?.error || data?.detail || 'Failed to duplicate ad';
+        toast.error(errorMsg);
+      }
+    } catch (err) {
+      console.error('Error duplicating ad:', err);
+      toast.error('Failed to duplicate ad');
+    }
+  };
+
+  const handleArchive = async () => {
+    const action = ad.status === 'ARCHIVED' ? 'unarchive' : 'archive';
+    try {
+      const res = await fetch(`/api/v1/meta-ads/ads/${ad.id}/${action}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Ad ${action === 'archive' ? 'archived' : 'unarchived'} successfully`);
+        onRefresh?.();
+      } else {
+        const errorMsg = data?.error || data?.detail || `Failed to ${action} ad`;
+        toast.error(errorMsg);
+      }
+    } catch (err) {
+      console.error(`Error ${action}ing ad:`, err);
+      toast.error(`Failed to ${action} ad`);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this ad? This action cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/v1/meta-ads/ads/${ad.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok || res.status === 204) {
+        toast.success('Ad deleted successfully');
+        onRefresh?.();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const errorMsg = data?.error || data?.detail || 'Failed to delete ad';
+        toast.error(errorMsg);
+      }
+    } catch (err) {
+      console.error('Error deleting ad:', err);
+      toast.error('Failed to delete ad');
+    }
   };
 
   return (
@@ -361,7 +450,7 @@ function AdCard({
         )}
         {/* Overlay */}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <Button size="sm" variant="secondary" className="gap-1">
+          <Button size="sm" variant="secondary" className="gap-1" onClick={handlePreview}>
             <Eye className="w-4 h-4" />
             Preview
           </Button>
@@ -375,7 +464,40 @@ function AdCard({
       </div>
 
       <CardContent className="p-4">
-        <h3 className="font-semibold mb-1 truncate">{ad.name}</h3>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className="font-semibold truncate flex-1">{ad.name}</h3>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={handlePreview}>
+                <Eye className="w-4 h-4 mr-2" />
+                Preview
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onStatusChange(ad.id, ad.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>
+                {ad.status === 'ACTIVE' ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                {ad.status === 'ACTIVE' ? 'Pause' : 'Activate'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleArchive}>
+                <Layers className="w-4 h-4 mr-2" />
+                {ad.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-red-600" onClick={handleDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <p className="text-sm text-muted-foreground mb-3 truncate">
           {adSet?.name || 'No ad set'}
         </p>
@@ -429,11 +551,11 @@ function AdCard({
               Activate
             </Button>
           )}
-          <Button variant="outline" size="sm" className="gap-1">
-            <Edit className="w-3 h-3" />
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1">
+          <Button variant="outline" size="sm" className="gap-1" onClick={handleDuplicate}>
             <Copy className="w-3 h-3" />
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1" onClick={handlePreview}>
+            <Eye className="w-3 h-3" />
           </Button>
         </div>
       </CardContent>

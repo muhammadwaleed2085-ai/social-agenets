@@ -782,7 +782,13 @@ async def update_adset(
         if not result.get("success"):
             raise HTTPException(status_code=400, detail=result.get("error"))
         
-        return JSONResponse(content={"success": True})
+        # Check if budget was skipped due to Campaign Budget Optimization
+        data = result.get("data", {})
+        response = {"success": True}
+        if data.get("budget_skipped_due_to_cbo"):
+            response["warning"] = "Budget update was skipped: This ad set's campaign uses Campaign Budget Optimization (CBO). To change budget, edit the campaign budget instead."
+        
+        return JSONResponse(content=response)
         
     except HTTPException:
         raise

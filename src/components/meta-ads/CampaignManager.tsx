@@ -662,13 +662,16 @@ function CampaignRow({
                   const res = await fetch(`/api/v1/meta-ads/campaigns/${campaign.id}/${action}`, {
                     method: 'POST'
                   });
+                  const data = await res.json();
                   if (res.ok) {
-                    toast.success(`Campaign ${action === 'archive' ? 'archived' : 'unarchived'}`);
+                    toast.success(`Campaign ${action === 'archive' ? 'archived' : 'unarchived'} successfully`);
                     onRefresh?.();
                   } else {
-                    toast.error(`Failed to ${action} campaign`);
+                    const errorMsg = data?.error || data?.detail || `Failed to ${action} campaign`;
+                    toast.error(errorMsg);
                   }
-                } catch {
+                } catch (err) {
+                  console.error(`Error ${action}ing campaign:`, err);
                   toast.error(`Failed to ${action} campaign`);
                 }
               }}>
@@ -736,20 +739,26 @@ function CampaignRow({
                     Add Ad
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => {
+                  <DropdownMenuItem onClick={async () => {
                     const newStatus = adSet.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-                    fetch(`/api/v1/meta-ads/adsets/${adSet.id}`, {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ status: newStatus })
-                    }).then(res => {
+                    try {
+                      const res = await fetch(`/api/v1/meta-ads/adsets/${adSet.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus })
+                      });
+                      const data = await res.json();
                       if (res.ok) {
                         toast.success(`Ad Set ${newStatus === 'ACTIVE' ? 'activated' : 'paused'}`);
-                        // Trigger refresh via parent
+                        onRefresh?.();
                       } else {
-                        toast.error('Failed to update ad set status');
+                        const errorMsg = data?.error || data?.detail || 'Failed to update ad set status';
+                        toast.error(errorMsg);
                       }
-                    });
+                    } catch (err) {
+                      console.error('Error updating ad set status:', err);
+                      toast.error('Failed to update ad set status');
+                    }
                   }}>
                     {adSet.status === 'ACTIVE' ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
                     {adSet.status === 'ACTIVE' ? 'Pause' : 'Activate'}
@@ -772,12 +781,16 @@ function CampaignRow({
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ new_name: `${adSet.name} (Copy)` })
                       });
+                      const data = await res.json();
                       if (res.ok) {
                         toast.success('Ad Set duplicated successfully');
+                        onRefresh?.();
                       } else {
-                        toast.error('Failed to duplicate ad set');
+                        const errorMsg = data?.error || data?.detail || 'Failed to duplicate ad set';
+                        toast.error(errorMsg);
                       }
-                    } catch {
+                    } catch (err) {
+                      console.error('Error duplicating ad set:', err);
                       toast.error('Failed to duplicate ad set');
                     }
                   }}>
@@ -790,12 +803,16 @@ function CampaignRow({
                       const res = await fetch(`/api/v1/meta-ads/adsets/${adSet.id}/${action}`, {
                         method: 'POST'
                       });
+                      const data = await res.json();
                       if (res.ok) {
                         toast.success(`Ad Set ${action === 'archive' ? 'archived' : 'unarchived'}`);
+                        onRefresh?.();
                       } else {
-                        toast.error(`Failed to ${action} ad set`);
+                        const errorMsg = data?.error || data?.detail || `Failed to ${action} ad set`;
+                        toast.error(errorMsg);
                       }
-                    } catch {
+                    } catch (err) {
+                      console.error(`Error ${action}ing ad set:`, err);
                       toast.error(`Failed to ${action} ad set`);
                     }
                   }}>
@@ -806,17 +823,21 @@ function CampaignRow({
                   <DropdownMenuItem
                     className="text-red-600"
                     onClick={async () => {
-                      if (!confirm('Are you sure you want to delete this ad set?')) return;
+                      if (!confirm('Are you sure you want to delete this ad set? This action cannot be undone.')) return;
                       try {
                         const res = await fetch(`/api/v1/meta-ads/adsets/${adSet.id}`, {
                           method: 'DELETE'
                         });
-                        if (res.ok) {
-                          toast.success('Ad Set deleted');
+                        if (res.ok || res.status === 204) {
+                          toast.success('Ad Set deleted successfully');
+                          onRefresh?.();
                         } else {
-                          toast.error('Failed to delete ad set');
+                          const data = await res.json().catch(() => ({}));
+                          const errorMsg = data?.error || data?.detail || 'Failed to delete ad set';
+                          toast.error(errorMsg);
                         }
-                      } catch {
+                      } catch (err) {
+                        console.error('Error deleting ad set:', err);
                         toast.error('Failed to delete ad set');
                       }
                     }}
@@ -913,20 +934,29 @@ function CampaignRow({
                       try {
                         const updateData: any = { name: editFormData.name, status: editFormData.status };
                         if (editFormData.daily_budget) {
-                          updateData.budget_amount = parseFloat(editFormData.daily_budget) * 100;
+                          updateData.budget_amount = parseFloat(editFormData.daily_budget);
                         }
                         const res = await fetch(`/api/v1/meta-ads/adsets/${editingAdSet.id}`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(updateData)
                         });
+                        const data = await res.json();
                         if (res.ok) {
-                          toast.success('Ad Set updated successfully');
+                          if (data.warning) {
+                            toast.success('Ad Set updated');
+                            toast(data.warning, { icon: '⚠️', duration: 6000 });
+                          } else {
+                            toast.success('Ad Set updated successfully');
+                          }
                           setEditingAdSet(null);
+                          onRefresh?.();
                         } else {
-                          toast.error('Failed to update ad set');
+                          const errorMsg = data?.error || data?.detail || 'Failed to update ad set';
+                          toast.error(errorMsg);
                         }
-                      } catch {
+                      } catch (err) {
+                        console.error('Error updating ad set:', err);
                         toast.error('Failed to update ad set');
                       }
                     }}

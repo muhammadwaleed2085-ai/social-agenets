@@ -1110,20 +1110,52 @@ class MetaSDKClient:
         v25.0+ 2026 Requirements:
         - is_adset_budget_sharing_enabled: Required for ad set budgets
         - placement_soft_opt_out: Allow 5% spend on excluded placements
+        
+        IMPORTANT: If the parent campaign uses Campaign Budget Optimization (CBO),
+        budget parameters (daily_budget, lifetime_budget) will be skipped to avoid
+        Meta API error 1885621: "Can't set ad set and campaign budget"
         """
         self._ensure_initialized()
         
         adset = AdSet(fbid=adset_id)
         params = {}
         
+        # Check if we need to skip budget updates due to Campaign Budget Optimization
+        skip_budget = False
+        if daily_budget is not None or lifetime_budget is not None:
+            try:
+                # Fetch the ad set to get its campaign_id, then check campaign budget
+                adset_info = adset.api_get(fields=['campaign_id'])
+                campaign_id = adset_info.get('campaign_id')
+                
+                if campaign_id:
+                    campaign = Campaign(fbid=campaign_id)
+                    campaign_info = campaign.api_get(fields=['daily_budget', 'lifetime_budget'])
+                    
+                    # If campaign has budget set, it's using CBO - skip adset budget
+                    if campaign_info.get('daily_budget') or campaign_info.get('lifetime_budget'):
+                        skip_budget = True
+                        logger.warning(
+                            f"Skipping budget update for adset {adset_id}: "
+                            f"Parent campaign {campaign_id} uses Campaign Budget Optimization (CBO). "
+                            f"Budget should be set at campaign level, not ad set level."
+                        )
+            except Exception as e:
+                # If we can't determine CBO status, proceed with caution
+                logger.warning(f"Could not check CBO status for adset {adset_id}: {e}")
+        
         if name:
             params['name'] = name
         if status:
             params['status'] = status
-        if daily_budget is not None:
-            params['daily_budget'] = daily_budget
-        if lifetime_budget is not None:
-            params['lifetime_budget'] = lifetime_budget
+        
+        # Only set budget if campaign is NOT using CBO
+        if not skip_budget:
+            if daily_budget is not None:
+                params['daily_budget'] = daily_budget
+            if lifetime_budget is not None:
+                params['lifetime_budget'] = lifetime_budget
+        
         if bid_amount is not None:
             params['bid_amount'] = bid_amount
             
@@ -1144,7 +1176,7 @@ class MetaSDKClient:
                 params['targeting']['targeting_automation']['advantage_audience'] = 1
         
         adset.api_update(params=params)
-        return {'success': True, 'id': adset_id}
+        return {'success': True, 'id': adset_id, 'budget_skipped_due_to_cbo': skip_budget}
     
     async def update_adset(
         self,
