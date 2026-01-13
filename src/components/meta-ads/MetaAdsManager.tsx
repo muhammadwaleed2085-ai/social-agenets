@@ -83,7 +83,7 @@ const initialState: MetaAdsState = {
   audiences: [],
   images: [],
   videos: [],
-  loading: true,
+  loading: false, // Start with false to render UI immediately
   error: null,
   selectedCampaign: null,
   selectedAdSet: null,
@@ -99,7 +99,8 @@ export default function MetaAdsManager() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(true); // Start true to show loading state on data
+  const [isInitializing, setIsInitializing] = useState(true); // Track initial load
   const [datePreset, setDatePreset] = useState<DatePreset>('last_7d');
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
 
@@ -117,9 +118,62 @@ export default function MetaAdsManager() {
   const [showBusinessSelector, setShowBusinessSelector] = useState(false);
   const [isSwitchingBusiness, setIsSwitchingBusiness] = useState(false);
 
+  // Optimized: Load all data in parallel on mount
   useEffect(() => {
-    checkConnectionStatus();
-    fetchBusinesses();
+    const initializeAll = async () => {
+      setIsInitializing(true);
+      setIsRefreshing(true);
+
+      try {
+        // Fetch all data in parallel for faster loading
+        const [statusRes, businessRes, campaignsRes, audiencesRes] = await Promise.all([
+          fetch('/api/v1/meta-ads/status', { credentials: 'include' }).catch(() => null),
+          fetch('/api/v1/meta-ads/switch-business', { credentials: 'include' }).catch(() => null),
+          fetch('/api/v1/meta-ads/campaigns', { credentials: 'include' }).catch(() => null),
+          fetch('/api/v1/meta-ads/audiences', { credentials: 'include' }).catch(() => null),
+        ]);
+
+        // Process status response
+        if (statusRes?.ok) {
+          const statusData = await statusRes.json();
+          setIsConnected(statusData.isConnected);
+          if (statusData.isConnected && statusData.adAccount) {
+            setState(prev => ({ ...prev, adAccount: statusData.adAccount }));
+          }
+        }
+
+        // Process business response
+        if (businessRes?.ok) {
+          const businessData = await businessRes.json();
+          setAvailableBusinesses(businessData.availableBusinesses || []);
+          setActiveBusiness(businessData.activeBusiness);
+        }
+
+        // Process campaigns response
+        if (campaignsRes?.ok) {
+          const campaignsData = await campaignsRes.json();
+          setState(prev => ({
+            ...prev,
+            campaigns: campaignsData.campaigns || [],
+            adSets: campaignsData.adSets || [],
+            ads: campaignsData.ads || [],
+          }));
+        }
+
+        // Process audiences response
+        if (audiencesRes?.ok) {
+          const audiencesData = await audiencesRes.json();
+          setState(prev => ({ ...prev, audiences: audiencesData.audiences || [] }));
+        }
+      } catch (error) {
+        console.error('Error initializing Meta Ads Manager:', error);
+      } finally {
+        setIsInitializing(false);
+        setIsRefreshing(false);
+      }
+    };
+
+    initializeAll();
   }, []);
 
   useEffect(() => {
@@ -134,19 +188,6 @@ export default function MetaAdsManager() {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showBusinessSelector]);
-
-  const fetchBusinesses = async () => {
-    try {
-      const response = await fetch('/api/v1/meta-ads/switch-business', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableBusinesses(data.availableBusinesses || []);
-        setActiveBusiness(data.activeBusiness);
-      }
-    } catch (error) { }
-  };
 
   const handleSwitchBusiness = async (businessId: string) => {
     setIsSwitchingBusiness(true);
@@ -165,7 +206,7 @@ export default function MetaAdsManager() {
           adAccount: data.adAccount,
         });
         setShowBusinessSelector(false);
-        await checkConnectionStatus();
+        // Reload all data after switching business
         await loadDashboardData();
       }
     } catch (error) {
@@ -174,37 +215,23 @@ export default function MetaAdsManager() {
     }
   };
 
-  const checkConnectionStatus = async () => {
-    try {
-      const response = await fetch('/api/v1/meta-ads/status', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setIsConnected(data.isConnected);
-        if (data.isConnected && data.adAccount) {
-          setState(prev => ({ ...prev, adAccount: data.adAccount, loading: false }));
-          loadDashboardData();
-        } else {
-          setState(prev => ({ ...prev, loading: false }));
-        }
-      } else {
-        setIsConnected(false);
-        setState(prev => ({ ...prev, loading: false }));
-      }
-    } catch (error) {
-      setIsConnected(false);
-      setState(prev => ({ ...prev, loading: false, error: 'Failed to check connection status' }));
-    }
-  };
-
   const loadDashboardData = async () => {
     setIsRefreshing(true);
     try {
-      const [campaignsRes, audiencesRes] = await Promise.all([
+      // Fetch status, campaigns, and audiences in parallel
+      const [statusRes, campaignsRes, audiencesRes] = await Promise.all([
+        fetch('/api/v1/meta-ads/status', { credentials: 'include' }),
         fetch('/api/v1/meta-ads/campaigns', { credentials: 'include' }),
         fetch('/api/v1/meta-ads/audiences', { credentials: 'include' }),
       ]);
+
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setIsConnected(statusData.isConnected);
+        if (statusData.isConnected && statusData.adAccount) {
+          setState(prev => ({ ...prev, adAccount: statusData.adAccount }));
+        }
+      }
 
       if (campaignsRes.ok) {
         const campaignsData = await campaignsRes.json();
@@ -246,7 +273,8 @@ export default function MetaAdsManager() {
   const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
   const activeCampaigns = state.campaigns.filter(c => c.status === 'ACTIVE').length;
 
-  if (state.loading) {
+  // Show loading spinner during initial load
+  if (isInitializing) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <div className="flex flex-col items-center gap-4">
@@ -262,7 +290,7 @@ export default function MetaAdsManager() {
   // Render tool content if a tool is selected
   if (activeTool) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full bg-canva-gradient">
         <ToolHeader
           toolName={activeTool}
           onBack={() => setActiveTool(null)}
@@ -287,9 +315,9 @@ export default function MetaAdsManager() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-canva-gradient">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-background border-b">
+      <header className="sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-white/40 dark:border-gray-700/40">
         <div className="px-6 py-1.5">
           <div className="flex items-center justify-between">
             {/* Left: Title & Account */}
@@ -357,20 +385,6 @@ export default function MetaAdsManager() {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-1.5">
-              {/* Date Selector */}
-              <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
-                <SelectTrigger className="w-[120px] h-7 text-xs">
-                  <Calendar className="w-3 h-3 mr-1.5 text-muted-foreground" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DATE_PRESETS.map((preset) => (
-                    <SelectItem key={preset.value} value={preset.value} className="text-xs">
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
               {/* Notifications */}
               <Button
@@ -382,10 +396,21 @@ export default function MetaAdsManager() {
                 <Bell className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
 
+              {/* Refresh */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={loadDashboardData}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
+              </Button>
+
               {/* Tools Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5">
+                  <Button size="sm" className="h-7 gap-1.5 text-xs px-2.5 text-white" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%)' }}>
                     <MoreHorizontal className="w-3.5 h-3.5" />
                     Tools
                   </Button>
@@ -422,31 +447,6 @@ export default function MetaAdsManager() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* Refresh */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={loadDashboardData}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
-              </Button>
-
-              {/* Create */}
-              <Button
-                size="sm"
-                className="h-7 gap-1.5 text-xs px-3 text-white"
-                style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%)' }}
-                onClick={() => {
-                  setActiveTab('campaigns');
-                  setShowCreateCampaign(true);
-                }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Create
-              </Button>
             </div>
           </div>
         </div>
@@ -475,69 +475,69 @@ export default function MetaAdsManager() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <div className="px-4 py-3">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             {/* Tab Navigation - Compact (matches Media Studio) */}
-            <div className="bg-card border rounded-lg p-1 shadow-sm">
-              <TabsList className="grid w-full grid-cols-5 bg-transparent gap-1 h-auto">
+            <div className="bg-card border rounded-md p-0.5 shadow-sm">
+              <TabsList className="grid w-full grid-cols-5 bg-transparent gap-0.5 h-auto">
                 <TabsTrigger
                   value="dashboard"
                   className={cn(
-                    "flex items-center justify-center gap-2 h-8 px-4 rounded-md text-xs font-medium transition-all duration-200",
+                    "flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-medium transition-all duration-200",
                     activeTab === 'dashboard'
                       ? "bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <BarChart3 className="w-4 h-4" />
+                  <BarChart3 className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Dashboard</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="campaigns"
                   className={cn(
-                    "flex items-center justify-center gap-2 h-8 px-4 rounded-md text-xs font-medium transition-all duration-200",
+                    "flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-medium transition-all duration-200",
                     activeTab === 'campaigns'
                       ? "bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Megaphone className="w-4 h-4" />
+                  <Megaphone className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Campaigns</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="audiences"
                   className={cn(
-                    "flex items-center justify-center gap-2 h-8 px-4 rounded-md text-xs font-medium transition-all duration-200",
+                    "flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-medium transition-all duration-200",
                     activeTab === 'audiences'
                       ? "bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Users className="w-4 h-4" />
+                  <Users className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Audiences</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="reports"
                   className={cn(
-                    "flex items-center justify-center gap-2 h-8 px-4 rounded-md text-xs font-medium transition-all duration-200",
+                    "flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-medium transition-all duration-200",
                     activeTab === 'reports'
                       ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <FileBarChart className="w-4 h-4" />
+                  <FileBarChart className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Reports</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="settings"
                   className={cn(
-                    "flex items-center justify-center gap-2 h-8 px-4 rounded-md text-xs font-medium transition-all duration-200",
+                    "flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-medium transition-all duration-200",
                     activeTab === 'settings'
                       ? "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-md"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Settings className="w-4 h-4" />
+                  <Settings className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Settings</span>
                 </TabsTrigger>
               </TabsList>

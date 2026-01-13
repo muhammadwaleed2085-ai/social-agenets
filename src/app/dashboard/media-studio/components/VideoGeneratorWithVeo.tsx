@@ -46,16 +46,16 @@ export function VideoGeneratorWithVeo({
           <TabsTrigger
             value="openai"
             className={`
-              flex items-center gap-1.5 px-3 py-1 rounded-md transition-all duration-200
-              data-[state=active]:bg-white dark:data-[state=active]:bg-white data-[state=active]:shadow-sm
-              data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-900
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all duration-200
+              data-[state=active]:shadow-sm
               data-[state=inactive]:hover:bg-white/50 dark:data-[state=inactive]:hover:bg-white/20
               data-[state=inactive]:text-foreground
             `}
+            style={provider === 'openai' ? { background: 'linear-gradient(135deg, #10a37f 0%, #1a7f64 100%)', color: 'white' } : undefined}
           >
             <div
               className="w-4 h-4 rounded flex items-center justify-center"
-              style={{ background: 'var(--ms-gradient-primary)' }}
+              style={{ background: provider === 'openai' ? 'rgba(255,255,255,0.2)' : '#10a37f' }}
             >
               <Bot className="w-2.5 h-2.5 text-white" />
             </div>
@@ -64,51 +64,38 @@ export function VideoGeneratorWithVeo({
           <TabsTrigger
             value="google"
             className={`
-              flex items-center gap-1.5 px-3 py-1 rounded-md transition-all duration-200
-              data-[state=active]:bg-white dark:data-[state=active]:bg-white data-[state=active]:shadow-sm
-              data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-900
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all duration-200
+              data-[state=active]:shadow-sm
               data-[state=inactive]:hover:bg-white/50 dark:data-[state=inactive]:hover:bg-white/20
               data-[state=inactive]:text-foreground
             `}
+            style={provider === 'google' ? { background: 'linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 100%)', color: 'white' } : undefined}
           >
             <div
               className="w-4 h-4 rounded flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 100%)' }}
+              style={{ background: provider === 'google' ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 100%)' }}
             >
               <Sparkles className="w-2.5 h-2.5 text-white" />
             </div>
             <span className="font-medium text-xs">Google Veo</span>
-            <Badge
-              className="text-[9px] px-1 py-0 flex items-center gap-0.5 border-0 h-4"
-              style={{ background: 'var(--ms-accent)', color: 'var(--ms-accent-foreground)' }}
-            >
-              <Volume2 className="w-2 h-2" />
-              Audio
-            </Badge>
           </TabsTrigger>
           <TabsTrigger
             value="runway"
             className={`
-              flex items-center gap-1.5 px-3 py-1 rounded-md transition-all duration-200
-              data-[state=active]:bg-white dark:data-[state=active]:bg-white data-[state=active]:shadow-sm
-              data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-900
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all duration-200
+              data-[state=active]:shadow-sm
               data-[state=inactive]:hover:bg-white/50 dark:data-[state=inactive]:hover:bg-white/20
               data-[state=inactive]:text-foreground
             `}
+            style={provider === 'runway' ? { background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', color: 'white' } : undefined}
           >
             <div
               className="w-4 h-4 rounded flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)' }}
+              style={{ background: provider === 'runway' ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)' }}
             >
               <Wand2 className="w-2.5 h-2.5 text-white" />
             </div>
             <span className="font-medium text-xs">Runway Gen4</span>
-            <Badge
-              className="text-[9px] px-1 py-0 flex items-center gap-0.5 border-0 h-4"
-              style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', color: 'white' }}
-            >
-              Style
-            </Badge>
           </TabsTrigger>
         </TabsList>
 

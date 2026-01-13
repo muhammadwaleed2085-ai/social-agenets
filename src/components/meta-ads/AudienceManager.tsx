@@ -189,17 +189,6 @@ export default function AudienceManager({ audiences, onRefresh }: AudienceManage
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search audiences..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 pl-9 text-sm"
-        />
-      </div>
-
       {/* Custom Audiences */}
       <div>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">

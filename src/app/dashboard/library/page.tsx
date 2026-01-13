@@ -150,44 +150,23 @@ export default function LibraryPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header with Toolbar */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-teal-500/15 via-cyan-500/10 to-emerald-500/15 dark:from-teal-900 dark:via-cyan-900 dark:to-teal-900">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-teal-500/30 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl animate-pulse"
-            style={{ animationDelay: '1s', animationDuration: '3s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-teal-600/20 rounded-full blur-3xl animate-pulse"
-            style={{ animationDelay: '1.5s', animationDuration: '4s' }} />
-          <div className="absolute top-10 right-1/4 w-32 h-32 bg-cyan-400/25 rounded-full blur-2xl animate-pulse"
-            style={{ animationDelay: '0.5s', animationDuration: '2.5s' }} />
-          <div className="absolute bottom-10 left-1/3 w-40 h-40 bg-teal-400/25 rounded-full blur-2xl animate-pulse"
-            style={{ animationDelay: '2s', animationDuration: '3.5s' }} />
-        </div>
-
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
-
-        <div className="relative px-6 py-5">
+      <div className="border-b bg-background">
+        <div className="relative px-6 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             {/* Left: Logo and Title */}
             <div className="flex items-center gap-4">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-teal-500 via-cyan-500 to-teal-500 rounded-xl blur-lg opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
-                <div className="absolute inset-0 bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-400 rounded-xl blur-xl opacity-50 animate-pulse"
-                  style={{ animationDelay: '0.5s' }} />
-                <div className="relative bg-gradient-to-r from-teal-500 via-cyan-500 to-teal-500 p-3 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
-                  <FolderOpen className="w-6 h-6 text-white" />
-                </div>
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <FolderOpen className="w-6 h-6 text-primary" />
               </div>
 
               <div>
-                <h1 className="text-lg font-bold text-teal-900 dark:text-white flex items-center gap-3">
+                <h1 className="text-lg font-bold text-foreground flex items-center gap-3">
                   Media Assets
-                  <Badge className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white border-0 text-[11px] px-2 py-0.5 h-6 shadow-lg hover:shadow-teal-500/50 transition-shadow">
-                    <Zap className="w-3 h-3 mr-1 animate-pulse" />
+                  <Badge variant="secondary" className="px-2 py-0.5 h-6">
                     All Media
                   </Badge>
                 </h1>
-                <p className="text-teal-700 dark:text-white/80 text-[13px] mt-0.5">
+                <p className="text-muted-foreground text-sm mt-0.5">
                   Browse and manage all your generated images and videos
                 </p>
               </div>
@@ -227,7 +206,7 @@ export default function LibraryPage() {
               {workspaceId && totalItems > 1 && (
                 isSelectMode ? (
                   <div className="flex items-center gap-2.5">
-                    <Badge variant="secondary" className="bg-white/20 text-white border-0 h-6 px-2.5 text-[11px]">
+                    <Badge variant="secondary" className="h-6 px-2.5 text-[11px]">
                       {selectedItems.length} selected
                     </Badge>
                     {selectedItems.length >= 2 && (
@@ -262,7 +241,7 @@ export default function LibraryPage() {
                       onClick={cancelSelectMode}
                       variant="outline"
                       size="sm"
-                      className="h-9 px-3.5 text-[13px] bg-white/10 border-white/30 text-white hover:bg-white/20 rounded-lg"
+                      className="h-9 px-3.5 text-[13px] rounded-lg"
                     >
                       <X className="w-4 h-4 mr-1.5" />
                       Cancel
@@ -273,7 +252,7 @@ export default function LibraryPage() {
                     onClick={() => setIsSelectMode(true)}
                     variant="outline"
                     size="sm"
-                    className="h-9 px-3.5 text-[13px] bg-white/10 border-teal-400/50 text-teal-700 dark:text-white hover:bg-teal-50 dark:hover:bg-white/20 rounded-lg"
+                    className="h-9 px-3.5 text-[13px] rounded-lg"
                   >
                     <CheckSquare className="w-4 h-4 mr-1.5" />
                     Select
@@ -283,31 +262,31 @@ export default function LibraryPage() {
 
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500 dark:text-white/60" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by prompt..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-10 w-[200px] text-[13px] bg-white/20 border-teal-400/50 text-teal-800 dark:text-white placeholder:text-teal-500 dark:placeholder:text-white/60 focus:bg-white/30 dark:focus:bg-white/20 rounded-lg"
+                  className="pl-10 h-10 w-[200px] text-[13px] rounded-lg"
                 />
                 {searchQuery && (
                   <button
                     className="absolute right-3 top-1/2 -translate-y-1/2"
                     onClick={() => setSearchQuery('')}
                   >
-                    <X className="w-4 h-4 text-teal-500 dark:text-white/60 hover:text-teal-700 dark:hover:text-white" />
+                    <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                   </button>
                 )}
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex gap-1.5 p-1.5 bg-white/10 rounded-xl">
+              <div className="flex gap-1.5 p-1.5 bg-muted/50 rounded-xl">
                 {(['all', 'images', 'videos', 'audio', 'favorites'] as FilterType[]).map((type) => (
                   <button
                     key={type}
                     className={`px-3 py-1.5 rounded-lg text-[12px] capitalize transition-colors flex items-center gap-1.5 ${filterType === type
-                      ? 'bg-white text-teal-700 shadow-sm font-medium'
-                      : 'text-teal-700 dark:text-white/70 hover:text-teal-900 dark:hover:text-white hover:bg-white/10'
+                      ? 'bg-primary text-primary-foreground shadow-sm font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                     onClick={() => setFilterType(type)}
                   >
@@ -325,18 +304,18 @@ export default function LibraryPage() {
                   size="sm"
                   onClick={fetchMediaFromDb}
                   disabled={isLoading}
-                  className="h-9 w-9 p-0 bg-white/10 border-white/30 text-white hover:bg-white/20 rounded-lg"
+                  className="h-9 w-9 p-0 rounded-lg"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               )}
 
               {/* View Mode Toggle */}
-              <div className="flex gap-1.5 p-1 bg-white/10 rounded-xl">
+              <div className="flex gap-1.5 p-1 bg-muted/50 rounded-xl">
                 <button
                   className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                    ? 'bg-white text-teal-700 shadow-sm'
-                    : 'text-teal-700 dark:text-white/70 hover:text-teal-900 dark:hover:text-white hover:bg-white/10'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   onClick={() => setViewMode('grid')}
                 >
@@ -344,8 +323,8 @@ export default function LibraryPage() {
                 </button>
                 <button
                   className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                    ? 'bg-white text-teal-700 shadow-sm'
-                    : 'text-teal-700 dark:text-white/70 hover:text-teal-900 dark:hover:text-white hover:bg-white/10'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   onClick={() => setViewMode('list')}
                 >

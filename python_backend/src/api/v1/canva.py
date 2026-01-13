@@ -249,7 +249,7 @@ async def canva_oauth_callback(
     Handles the OAuth callback from Canva.
     Exchanges authorization code for access tokens.
     """
-    dashboard_url = f"{APP_URL}/dashboard/media-studio"
+    dashboard_url = f"{APP_URL}/dashboard/canva-editor"
     
     if error:
         logger.warning(f"Canva OAuth denied: {error}")

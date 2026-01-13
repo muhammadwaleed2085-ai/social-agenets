@@ -142,18 +142,18 @@ export function MediaStudioDashboard() {
   const currentTab = tabs.find(t => t.id === activeTab);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-canva-gradient">
 
       {/* Main Content */}
-      <div className="flex-1 pt-2 px-6 pb-6" style={{ background: 'var(--ms-gradient-subtle)' }}>
+      <div className="flex-1 pt-2 px-6 pb-6">
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as MediaStudioTab)}
           className="flex-1 flex flex-col"
         >
           {/* Tab Navigation - Enterprise Standard */}
-          <div className="bg-card border rounded-lg p-1 shadow-sm mb-4">
-            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-1 h-auto">
+          <div className="bg-card border rounded-md p-0 shadow-sm mb-2">
+            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-0 h-auto">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
 
@@ -162,8 +162,8 @@ export function MediaStudioDashboard() {
                     key={tab.id}
                     value={tab.id}
                     className={`
-                      relative flex items-center justify-center gap-2 h-8 px-4 rounded-md 
-                      text-[12px] font-medium transition-all duration-200
+                      relative flex items-center justify-center gap-1 h-6 px-2 rounded-sm 
+                      text-[10px] font-medium transition-all duration-200
                       data-[state=inactive]:hover:bg-muted/60
                       group
                     `}

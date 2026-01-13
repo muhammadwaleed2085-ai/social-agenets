@@ -409,7 +409,7 @@ const ContentStrategistView: React.FC<ContentStrategistViewProps> = ({ onPostCre
     }
 
     return (
-        <div ref={containerRef} className="flex h-full bg-background">
+        <div ref={containerRef} className={`flex h-full ${!hasUserSentMessage ? 'bg-canva-gradient' : 'bg-background'}`}>
             {isHistoryVisible && (
                 <Suspense fallback={
                     <div className="w-64 bg-card border-r border-border animate-pulse">

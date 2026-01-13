@@ -486,6 +486,94 @@
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
 
+  /* Canva-Inspired Content Strategist Background */
+  .bg-canva-gradient {
+    background:
+      /* White fade at bottom for content readability */
+      linear-gradient(180deg,
+        transparent 0%,
+        transparent 40%,
+        rgba(255, 255, 255, 0.9) 70%,
+        #ffffff 100%),
+      /* Main Canva gradient: teal to purple */
+      linear-gradient(135deg,
+        rgba(0, 196, 204, 0.3) 0%,
+        /* Teal */
+        rgba(139, 61, 255, 0.25) 50%,
+        /* Purple */
+        rgba(125, 42, 232, 0.2) 100%),
+      /* Deep purple */
+      /* Base white */
+      #ffffff;
+  }
+
+  .dark .bg-canva-gradient {
+    background:
+      linear-gradient(180deg,
+        transparent 0%,
+        transparent 40%,
+        rgba(15, 15, 20, 0.9) 70%,
+        #0f0f14 100%),
+      linear-gradient(135deg,
+        rgba(0, 196, 204, 0.15) 0%,
+        rgba(139, 61, 255, 0.12) 50%,
+        rgba(125, 42, 232, 0.1) 100%),
+      #0f0f14;
+  }
+
+  /* Full Page Gradient Overlay - for Media Studio and other pages */
+  .bg-gradient-bottom-overlay {
+    position: relative;
+  }
+
+  .bg-gradient-bottom-overlay::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      /* Top section: teal accent */
+      radial-gradient(ellipse 80% 50% at 20% 0%,
+        rgba(0, 196, 204, 0.12) 0%,
+        transparent 60%),
+      /* Right side: purple accent */
+      radial-gradient(ellipse 60% 60% at 100% 30%,
+        rgba(139, 61, 255, 0.1) 0%,
+        transparent 50%),
+      /* Bottom: purple-violet glow */
+      radial-gradient(ellipse 100% 60% at 50% 100%,
+        rgba(125, 42, 232, 0.15) 0%,
+        transparent 50%),
+      /* Left accent */
+      radial-gradient(ellipse 50% 50% at 0% 60%,
+        rgba(0, 196, 204, 0.08) 0%,
+        transparent 50%);
+  }
+
+  .dark .bg-gradient-bottom-overlay::before {
+    background:
+      /* Top section: teal accent - more visible in dark mode */
+      radial-gradient(ellipse 80% 50% at 20% 0%,
+        rgba(0, 196, 204, 0.2) 0%,
+        transparent 60%),
+      /* Right side: purple accent */
+      radial-gradient(ellipse 60% 60% at 100% 30%,
+        rgba(139, 61, 255, 0.18) 0%,
+        transparent 50%),
+      /* Bottom: purple-violet glow */
+      radial-gradient(ellipse 100% 60% at 50% 100%,
+        rgba(125, 42, 232, 0.25) 0%,
+        transparent 50%),
+      /* Left accent */
+      radial-gradient(ellipse 50% 50% at 0% 60%,
+        rgba(0, 196, 204, 0.12) 0%,
+        transparent 50%);
+  }
+
   /* ============================================================================
      MEDIA STUDIO DESIGN SYSTEM
      ============================================================================ */

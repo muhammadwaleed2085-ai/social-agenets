@@ -351,51 +351,30 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ posts }) => {
     return (
         <div className="flex flex-col h-full">
             {/* Header - Matching Library Page Design */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-teal-500/15 via-cyan-500/10 to-emerald-500/15 dark:from-teal-900 dark:via-cyan-900 dark:to-teal-900">
-                {/* Animated background elements */}
-                <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute -top-24 -right-24 w-96 h-96 bg-teal-500/30 rounded-full blur-3xl animate-pulse" />
-                    <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl animate-pulse"
-                        style={{ animationDelay: '1s', animationDuration: '3s' }} />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-teal-600/20 rounded-full blur-3xl animate-pulse"
-                        style={{ animationDelay: '1.5s', animationDuration: '4s' }} />
-                    <div className="absolute top-10 right-1/4 w-32 h-32 bg-cyan-400/25 rounded-full blur-2xl animate-pulse"
-                        style={{ animationDelay: '0.5s', animationDuration: '2.5s' }} />
-                    <div className="absolute bottom-10 left-1/3 w-40 h-40 bg-teal-400/25 rounded-full blur-2xl animate-pulse"
-                        style={{ animationDelay: '2s', animationDuration: '3.5s' }} />
-                </div>
-
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
-
-                <div className="relative px-6 py-5">
+            <div className="border-b bg-background">
+                <div className="relative px-6 py-4">
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                         {/* Left: Logo and Title */}
                         <div className="flex items-center gap-4">
-                            <div className="relative group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-teal-500 via-cyan-500 to-teal-500 rounded-xl blur-lg opacity-75 animate-pulse group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute inset-0 bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-400 rounded-xl blur-xl opacity-50 animate-pulse"
-                                    style={{ animationDelay: '0.5s' }} />
-                                <div className="relative bg-gradient-to-r from-teal-500 via-cyan-500 to-teal-500 p-3 rounded-xl shadow-xl transform transition-transform group-hover:scale-105">
-                                    <BarChart3 className="w-6 h-6 text-white" />
-                                </div>
+                            <div className="p-2 bg-primary/10 rounded-xl">
+                                <BarChart3 className="w-6 h-6 text-primary" />
                             </div>
 
                             <div>
-                                <h1 className="text-lg font-bold text-teal-900 dark:text-white flex items-center gap-3">
+                                <h1 className="text-lg font-bold text-foreground flex items-center gap-3">
                                     Social Media Analytics
-                                    <span className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white border-0 text-[11px] px-2 py-0.5 h-6 shadow-lg rounded-full inline-flex items-center">
-                                        <Zap className="w-3 h-3 mr-1 animate-pulse" />
+                                    <span className="bg-secondary text-secondary-foreground text-[11px] px-2 py-0.5 h-6 rounded-full inline-flex items-center">
                                         Insights
                                     </span>
                                 </h1>
-                                <p className="text-teal-700 dark:text-white/80 text-[13px] mt-0.5">
+                                <p className="text-muted-foreground text-sm mt-0.5">
                                     In-depth performance insights for Facebook, Instagram, TikTok & YouTube
                                 </p>
                             </div>
                         </div>
 
                         {/* Right: Time Range Tabs */}
-                        <div className="flex gap-1.5 p-1.5 bg-white/10 rounded-xl">
+                        <div className="flex gap-1.5 p-1.5 bg-muted/50 rounded-xl">
                             {(['7d', '30d', 'all'] as const).map((range) => {
                                 const isActive = timeRange === range;
                                 const label = range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : 'All Time';
@@ -404,8 +383,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ posts }) => {
                                         key={range}
                                         onClick={() => setTimeRange(range)}
                                         className={`px-4 py-2 rounded-lg text-[13px] transition-all duration-200 ${isActive
-                                            ? 'bg-white text-teal-700 shadow-sm font-medium'
-                                            : 'text-teal-700 dark:text-white/70 hover:text-teal-900 dark:hover:text-white hover:bg-white/10'
+                                            ? 'bg-primary text-primary-foreground shadow-sm font-medium'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                             }`}
                                     >
                                         {label}

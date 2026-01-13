@@ -317,30 +317,6 @@ export default function CampaignManager({ campaigns = [], adSets = [], ads = [],
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search campaigns..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 pl-9 text-sm"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[140px] h-9 text-sm">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="PAUSED">Paused</SelectItem>
-            <SelectItem value="ARCHIVED">Archived</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Bulk Actions Bar */}
       {selectedCampaignIds.size > 0 && (
         <Card className="bg-primary/5 border-primary/20">
@@ -399,7 +375,8 @@ export default function CampaignManager({ campaigns = [], adSets = [], ads = [],
             </div>
           </CardContent>
         </Card>
-      )}
+      )
+      }
 
       {/* Campaigns Table */}
       <div className="border rounded-lg overflow-hidden">
@@ -476,31 +453,35 @@ export default function CampaignManager({ campaigns = [], adSets = [], ads = [],
 
 
       {/* Edit Campaign Modal */}
-      {showEditModal && editingCampaign && (
-        <EditCampaignModal
-          campaign={editingCampaign}
-          formData={editFormData}
-          setFormData={setEditFormData}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingCampaign(null);
-            setEditFormData(initialFormData);
-          }}
-          onSubmit={handleUpdateCampaign}
-          isSubmitting={isSubmitting}
-        />
-      )}
+      {
+        showEditModal && editingCampaign && (
+          <EditCampaignModal
+            campaign={editingCampaign}
+            formData={editFormData}
+            setFormData={setEditFormData}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingCampaign(null);
+              setEditFormData(initialFormData);
+            }}
+            onSubmit={handleUpdateCampaign}
+            isSubmitting={isSubmitting}
+          />
+        )
+      }
 
       {/* Advantage+ Campaign Wizard (v24.0 2026 Unified Experience) */}
-      {showAdvantageWizard && (
-        <AdvantagePlusWizard
-          onClose={() => handleWizardChange(false)}
-          onSuccess={() => {
-            handleWizardChange(false);
-            onRefresh();
-          }}
-        />
-      )}
+      {
+        showAdvantageWizard && (
+          <AdvantagePlusWizard
+            onClose={() => handleWizardChange(false)}
+            onSuccess={() => {
+              handleWizardChange(false);
+              onRefresh();
+            }}
+          />
+        )
+      }
     </div >
   );
 }

@@ -36,7 +36,7 @@ const sidebarItems = [
     { icon: FolderOpen, label: 'Library', href: '/dashboard/library' },
     { icon: Send, label: 'Publish', href: '/dashboard/history' },
     { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
-    { icon: MessageSquare, label: 'Comments', href: '/dashboard/comments' },
+    { icon: MessageSquare, label: 'Inbox', href: '/dashboard/comments' },
     { icon: Megaphone, label: 'Meta Ads', href: '/dashboard/meta-ads' },
 ];
 

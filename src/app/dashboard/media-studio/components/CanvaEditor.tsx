@@ -118,6 +118,11 @@ export function CanvaEditor({ onMediaSaved, activeTab: controlledActiveTab, onTa
   // Check connection on mount or when user becomes available
   useEffect(() => {
     if (user?.id) {
+      // Skip if we have canva_connected URL param - that effect will handle it
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('canva_connected') === 'true') {
+        return;
+      }
       checkConnection();
     }
   }, [user?.id]);
@@ -126,15 +131,29 @@ export function CanvaEditor({ onMediaSaved, activeTab: controlledActiveTab, onTa
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('canva_connected') === 'true') {
+      // Set connected immediately for UI feedback
       setIsConnected(true);
+      setIsCheckingConnection(false);
       toast.success('Canva connected successfully!');
       // Clean URL
       window.history.replaceState({}, '', window.location.pathname);
+      // Verify connection status from backend (in background, don't override UI state on this)
+      if (user?.id) {
+        fetch(`/api/canva/auth/status?user_id=${user.id}`)
+          .then(res => res.json())
+          .then(data => {
+            // Only update if actually not connected (safety check)
+            if (!data.connected || data.isExpired) {
+              console.warn('Canva connection verification failed, status:', data);
+            }
+          })
+          .catch(() => { });
+      }
     } else if (params.get('canva_error')) {
       toast.error('Failed to connect Canva: ' + params.get('canva_error'));
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [user?.id]);
 
   // Load data when connected and user is available
   useEffect(() => {

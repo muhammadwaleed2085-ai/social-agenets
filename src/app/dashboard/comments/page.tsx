@@ -69,12 +69,12 @@ function formatTimeAgo(dateString: string): string {
 
 function PlatformIcon({ platform }: { platform: string }) {
   if (platform === 'instagram') {
-    return <Instagram className="h-4 w-4 text-pink-500" />;
+    return <Instagram className="h-3.5 w-3.5 text-pink-500" />;
   }
   if (platform === 'youtube') {
-    return <Youtube className="h-4 w-4 text-red-600" />;
+    return <Youtube className="h-3.5 w-3.5 text-red-600" />;
   }
-  return <Facebook className="h-4 w-4 text-blue-600" />;
+  return <Facebook className="h-3.5 w-3.5 text-blue-600" />;
 }
 
 // ============================================================================
@@ -134,7 +134,7 @@ export default function CommentsPage() {
   ] as const;
 
   const actionButtonBase =
-    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.98]';
+    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed shadow-sm hover:shadow active:scale-[0.98]';
   const replyButtonStyles = `${actionButtonBase} bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary/40`;
   const deleteButtonStyles = `${actionButtonBase} bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/40`;
   const neutralButtonStyles = `${actionButtonBase} border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-muted-foreground/30 shadow-none`;
@@ -277,50 +277,50 @@ export default function CommentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-canva-gradient">
+      <div className="max-w-6xl mx-auto p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
-                <MessageSquare className="h-6 w-6 text-primary" />
+            <h1 className="text-lg font-semibold flex items-center gap-2">
+              <div className="p-1.5 bg-primary/10 rounded-lg border border-primary/20">
+                <MessageSquare className="h-4 w-4 text-primary" />
               </div>
-              Comments
+              Inbox
             </h1>
-            <p className="text-muted-foreground mt-1.5 text-sm">
+            <p className="text-muted-foreground mt-0.5 text-xs">
               Comments that need your expertise
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setShowKnowledgeModal(true)}
-              className="group flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="group flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:shadow hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               title="Manage Knowledge Base"
             >
-              <BookOpen className="h-4 w-4 text-primary" />
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
               <span className="hidden sm:inline">Knowledge</span>
             </button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {statCards.map((card) => (
             <div
               key={card.id}
-              className="relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
+              className="relative overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow transition-shadow duration-200"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{card.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{card.value}</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{card.label}</p>
+                  <p className="text-xl font-bold text-foreground mt-0.5">{card.value}</p>
                 </div>
-                <div className={`h-12 w-12 rounded-xl ${card.bgColor} ${card.borderColor} border flex items-center justify-center`}>
-                  <card.icon className={`h-6 w-6 ${card.iconColor}`} />
+                <div className={`h-8 w-8 rounded-lg ${card.bgColor} ${card.borderColor} border flex items-center justify-center`}>
+                  <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                 </div>
               </div>
-              <p className="text-xs mt-3 text-muted-foreground">
+              <p className="text-[10px] mt-1.5 text-muted-foreground">
                 {card.description}
               </p>
             </div>
@@ -328,50 +328,50 @@ export default function CommentsPage() {
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center gap-3 border-b border-border pb-4">
-          <span className="text-sm font-medium text-foreground">
+        <div className="flex items-center gap-2 border-b border-border pb-2.5">
+          <span className="text-xs font-medium text-foreground">
             {stats.pending} comment{stats.pending !== 1 ? 's' : ''} need{stats.pending === 1 ? 's' : ''} your reply
           </span>
           {comments.length > 0 && (
             <button
               onClick={deleteAllComments}
               disabled={deletingAll}
-              className="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-all disabled:opacity-50 border border-transparent hover:border-destructive/20"
+              className="ml-auto flex items-center gap-1 px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-all disabled:opacity-50 border border-transparent hover:border-destructive/20"
               title="Delete all pending comments"
             >
               {deletingAll ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3 w-3" />
               )}
               Clear All
             </button>
           )}
           <button
             onClick={() => fetchComments()}
-            className={`${comments.length > 0 ? '' : 'ml-auto'} p-2.5 text-muted-foreground hover:text-primary rounded-lg hover:bg-primary/10 transition-all border border-transparent hover:border-primary/20`}
+            className={`${comments.length > 0 ? '' : 'ml-auto'} p-1.5 text-muted-foreground hover:text-primary rounded-md hover:bg-primary/10 transition-all border border-transparent hover:border-primary/20`}
             title="Refresh"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
         {/* Comments List */}
-        <div className={comments.length === 0 ? "space-y-4" : "grid grid-cols-1 lg:grid-cols-2 gap-4"}>
+        <div className={comments.length === 0 ? "space-y-3" : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"}>
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="p-4 bg-primary/10 rounded-full mb-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="p-2.5 bg-primary/10 rounded-full mb-2.5">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">Loading comments...</p>
+              <p className="text-xs text-muted-foreground">Loading comments...</p>
             </div>
           ) : comments.length === 0 ? (
-            <div className="text-center py-20 border border-border rounded-xl bg-card shadow-sm">
-              <div className="w-16 h-16 mx-auto mb-4 bg-accent/10 rounded-full flex items-center justify-center border border-accent/20">
-                <CheckCircle className="h-8 w-8 text-accent" />
+            <div className="text-center py-12 border border-border rounded-lg bg-card shadow-sm">
+              <div className="w-10 h-10 mx-auto mb-2.5 bg-accent/10 rounded-full flex items-center justify-center border border-accent/20">
+                <CheckCircle className="h-5 w-5 text-accent" />
               </div>
-              <h3 className="font-semibold text-lg text-foreground">All caught up!</h3>
-              <p className="text-muted-foreground mt-2 max-w-sm mx-auto text-sm">
+              <h3 className="font-medium text-sm text-foreground">All caught up!</h3>
+              <p className="text-muted-foreground mt-1 max-w-xs mx-auto text-xs">
                 No comments need your attention. The AI is handling the rest automatically.
               </p>
             </div>
@@ -379,18 +379,18 @@ export default function CommentsPage() {
             comments.map((comment) => (
               <div
                 key={comment.id}
-                className="border border-border rounded-xl overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md bg-card group"
+                className="border border-border rounded-lg overflow-hidden shadow-sm transition-all duration-200 hover:shadow bg-card group"
               >
                 {/* Comment Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/40">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-background rounded-lg border border-border">
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted/40">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-background rounded-md border border-border">
                       <PlatformIcon platform={comment.platform} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground">{comment.username.startsWith('@') ? comment.username : `@${comment.username}`}</span>
-                        <span className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-xs text-foreground">{comment.username.startsWith('@') ? comment.username : `@${comment.username}`}</span>
+                        <span className="text-[10px] text-muted-foreground">
                           {formatTimeAgo(comment.created_at)}
                         </span>
                       </div>
@@ -399,65 +399,65 @@ export default function CommentsPage() {
                           href={getPlatformUrl(comment.platform, comment.post_id)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-primary hover:text-primary/80 hover:underline font-medium"
+                          className="text-[10px] text-primary hover:text-primary/80 hover:underline font-medium"
                         >
                           View {comment.platform === 'youtube' ? 'Video' : 'Post'}
                         </a>
                       )}
                     </div>
                   </div>
-                  <span className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-primary/20 font-medium">
-                    <Clock className="h-3 w-3" />
+                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-md flex items-center gap-1 border border-primary/20 font-medium">
+                    <Clock className="h-2.5 w-2.5" />
                     Needs Reply
                   </span>
                 </div>
 
                 {/* AI Summary - Why this needs attention */}
                 {comment.summary && (
-                  <div className="px-5 py-4 border-b border-border bg-secondary/5">
-                    <div className="flex items-start gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-secondary/10 border border-secondary/20 flex items-center justify-center flex-shrink-0">
-                        <Bot className="h-4 w-4 text-secondary" />
+                  <div className="px-3 py-2.5 border-b border-border bg-secondary/5">
+                    <div className="flex items-start gap-2">
+                      <div className="h-6 w-6 rounded-md bg-secondary/10 border border-secondary/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="h-3 w-3 text-secondary" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-secondary uppercase tracking-wider">AI Analysis</p>
-                        <p className="text-sm text-foreground mt-1 leading-relaxed">{comment.summary}</p>
+                        <p className="text-[10px] font-semibold text-secondary uppercase tracking-wider">AI Analysis</p>
+                        <p className="text-xs text-foreground mt-0.5 leading-relaxed">{comment.summary}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Original Comment */}
-                <div className="px-5 py-4 bg-card">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Original Comment</p>
-                  <p className="text-foreground whitespace-pre-wrap leading-relaxed text-[15px]">
+                <div className="px-3 py-2.5 bg-card">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Original Comment</p>
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed text-xs">
                     {comment.original_comment}
                   </p>
                 </div>
 
                 {/* Actions */}
-                <div className="px-5 py-4 border-t border-border bg-muted/30">
+                <div className="px-3 py-2.5 border-t border-border bg-muted/30">
                   {replyingTo === comment.id ? (
-                    <div className="space-y-4">
+                    <div className="space-y-2.5">
                       <textarea
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
                         placeholder="Type your reply..."
-                        className="w-full px-4 py-3 border border-border rounded-xl resize-none h-32 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-card shadow-sm text-foreground placeholder:text-muted-foreground"
+                        className="w-full px-3 py-2 border border-border rounded-lg resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-card shadow-sm text-xs text-foreground placeholder:text-muted-foreground"
                         autoFocus
                       />
-                      <div className="flex gap-3">
+                      <div className="flex gap-2">
                         <button
                           onClick={() => sendReply(comment)}
                           disabled={!replyText.trim() || sendingReply}
                           className={`${replyButtonStyles} disabled:cursor-not-allowed disabled:opacity-50`}
                         >
                           {sendingReply ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Send className="h-4 w-4" />
+                            <Send className="h-3 w-3" />
                           )}
-                          Send Reply
+                          Send
                         </button>
                         <button
                           onClick={() => {
@@ -471,19 +471,19 @@ export default function CommentsPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => setReplyingTo(comment.id)}
                         className={replyButtonStyles}
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-3 w-3" />
                         Reply
                       </button>
                       <button
                         onClick={() => deleteComment(comment)}
                         className={deleteButtonStyles}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                         Delete
                       </button>
                       <button
@@ -610,51 +610,51 @@ function KnowledgeBaseModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col border border-border overflow-hidden">
+      <div className="bg-card rounded-lg shadow-xl w-full max-w-xl max-h-[75vh] flex flex-col border border-border overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-muted/30">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
           <div>
-            <h2 className="text-lg font-bold flex items-center gap-3 text-foreground">
-              <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
-                <BookOpen className="h-5 w-5 text-primary" />
+            <h2 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <div className="p-1.5 bg-primary/10 rounded-md border border-primary/20">
+                <BookOpen className="h-3.5 w-3.5 text-primary" />
               </div>
               Knowledge Base
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-[10px] text-muted-foreground mt-0.5">
               Add info so the AI can answer common questions automatically
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-all border border-transparent hover:border-border"
+            className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-md transition-all border border-transparent hover:border-border"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {/* Add New Button */}
           {!showAddForm && (
             <button
               onClick={() => setShowAddForm(true)}
-              className="w-full p-5 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium"
+              className="w-full p-3 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all flex items-center justify-center gap-1.5 text-xs font-medium"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-3.5 w-3.5" />
               Add Knowledge Entry
             </button>
           )}
 
           {/* Add Form */}
           {showAddForm && (
-            <div className="border border-border rounded-xl p-5 space-y-4 bg-muted/20 shadow-sm">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/20 shadow-sm">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-semibold mb-2 block text-foreground">Category</label>
+                  <label className="text-[10px] font-semibold mb-1 block text-foreground uppercase tracking-wide">Category</label>
                   <select
                     value={newEntry.category}
                     onChange={(e) => setNewEntry({ ...newEntry, category: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className="w-full px-2 py-1.5 border border-border rounded-md bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   >
                     {categories.map((cat) => (
                       <option key={cat.value} value={cat.value}>
@@ -664,47 +664,47 @@ function KnowledgeBaseModal({ onClose }: { onClose: () => void }) {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold mb-2 block text-foreground">Title *</label>
+                  <label className="text-[10px] font-semibold mb-1 block text-foreground uppercase tracking-wide">Title *</label>
                   <input
                     type="text"
                     value={newEntry.title}
                     onChange={(e) => setNewEntry({ ...newEntry, title: e.target.value })}
                     placeholder="e.g., Return Policy"
-                    className="w-full px-3 py-2.5 border border-border rounded-lg bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className="w-full px-2 py-1.5 border border-border rounded-md bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold mb-2 block text-foreground">Common Question</label>
+                <label className="text-[10px] font-semibold mb-1 block text-foreground uppercase tracking-wide">Common Question</label>
                 <input
                   type="text"
                   value={newEntry.question}
                   onChange={(e) => setNewEntry({ ...newEntry, question: e.target.value })}
                   placeholder="e.g., What is your return policy?"
-                  className="w-full px-3 py-2.5 border border-border rounded-lg bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  className="w-full px-2 py-1.5 border border-border rounded-md bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold mb-2 block text-foreground">Answer *</label>
+                <label className="text-[10px] font-semibold mb-1 block text-foreground uppercase tracking-wide">Answer *</label>
                 <textarea
                   value={newEntry.answer}
                   onChange={(e) => setNewEntry({ ...newEntry, answer: e.target.value })}
                   placeholder="The answer the AI should give..."
-                  className="w-full px-3 py-2.5 border border-border rounded-lg bg-card h-28 resize-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  className="w-full px-2 py-1.5 border border-border rounded-md bg-card h-20 resize-none text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 pt-1">
                 <button
                   onClick={addEntry}
                   disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow text-xs font-medium"
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   {saving ? 'Saving...' : 'Save Entry'}
                 </button>
                 <button
                   onClick={() => setShowAddForm(false)}
-                  className="px-5 py-2.5 border border-border text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-all font-medium"
+                  className="px-3 py-1.5 border border-border text-muted-foreground rounded-md hover:bg-muted hover:text-foreground transition-all text-xs font-medium"
                 >
                   Cancel
                 </button>
@@ -714,47 +714,47 @@ function KnowledgeBaseModal({ onClose }: { onClose: () => void }) {
 
           {/* Entries List */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="p-3 bg-primary/10 rounded-full mb-3">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="p-2 bg-primary/10 rounded-full mb-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">Loading entries...</p>
+              <p className="text-[10px] text-muted-foreground">Loading entries...</p>
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-12 border border-border rounded-xl bg-muted/20">
-              <div className="w-14 h-14 mx-auto mb-3 bg-muted rounded-full flex items-center justify-center border border-border">
-                <BookOpen className="h-7 w-7 text-muted-foreground" />
+            <div className="text-center py-8 border border-border rounded-lg bg-muted/20">
+              <div className="w-10 h-10 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center border border-border">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
               </div>
-              <p className="font-medium text-foreground">No knowledge entries yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Add FAQs, policies, and product info so the AI can answer automatically.</p>
+              <p className="font-medium text-xs text-foreground">No knowledge entries yet</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Add FAQs, policies, and product info so the AI can answer automatically.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {entries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="border border-border rounded-xl p-4 bg-card shadow-sm hover:shadow-md transition-shadow duration-200 group"
+                  className="border border-border rounded-lg p-3 bg-card shadow-sm hover:shadow transition-shadow duration-200 group"
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs px-2.5 py-1 bg-primary/10 text-primary rounded-md font-medium capitalize border border-primary/20">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-medium capitalize border border-primary/20">
                           {entry.category}
                         </span>
-                        <span className="font-semibold text-foreground">{entry.title}</span>
+                        <span className="font-medium text-xs text-foreground">{entry.title}</span>
                       </div>
                       {entry.question && (
-                        <p className="text-sm text-muted-foreground mb-1.5">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">
                           <span className="font-medium">Q:</span> {entry.question}
                         </p>
                       )}
-                      <p className="text-sm text-foreground/80 line-clamp-2 leading-relaxed">{entry.answer}</p>
+                      <p className="text-[10px] text-foreground/80 line-clamp-2 leading-relaxed">{entry.answer}</p>
                     </div>
                     <button
                       onClick={() => deleteEntry(entry.id)}
-                      className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-destructive/20"
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-all opacity-0 group-hover:opacity-100 border border-transparent hover:border-destructive/20"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
