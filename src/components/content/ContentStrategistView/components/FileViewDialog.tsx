@@ -11,6 +11,8 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "react-hot-toast";
 import { MarkdownContent } from "./MarkdownContent";
+import { EnhancedMarkdown } from "./EnhancedMarkdown";
+import { EnhancedPDFGenerator } from "../utils/pdfGenerator";
 import type { FileItem } from "../types";
 import useSWRMutation from "swr/mutation";
 
@@ -119,59 +121,14 @@ export const FileViewDialog = React.memo<{
         if (!fileContent || !fileName) return;
         
         try {
-            // Dynamic import for PDF generation
-            const html2pdf = (await import('html2pdf.js')).default;
-            
-            // Create a styled HTML container for the content
-            const container = document.createElement('div');
-            container.style.cssText = `
-                font-family: Arial, sans-serif;
-                font-size: 11pt;
-                line-height: 1.5;
-                color: #000;
-                background: white;
-            `;
-            
-            // Convert markdown to HTML directly from fileContent
-            if (isMarkdown) {
-                // Simple markdown to HTML conversion for PDF
-                let htmlContent = fileContent
-                    // Headers
-                    .replace(/^### (.*$)/gm, '<h3 style="font-size: 14pt; margin: 16px 0 8px;">$1</h3>')
-                    .replace(/^## (.*$)/gm, '<h2 style="font-size: 16pt; margin: 20px 0 10px;">$1</h2>')
-                    .replace(/^# (.*$)/gm, '<h1 style="font-size: 20pt; margin: 24px 0 12px;">$1</h1>')
-                    // Bold and italic
-                    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                    // Lists
-                    .replace(/^\- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-                    .replace(/^\d+\. (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-                    // Line breaks to paragraphs
-                    .replace(/\n\n/g, '</p><p style="margin: 12px 0;">')
-                    .replace(/\n/g, '<br/>');
-                
-                container.innerHTML = `<p style="margin: 12px 0;">${htmlContent}</p>`;
-            } else {
-                container.innerHTML = `<pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.5;">${fileContent}</pre>`;
-            }
-            
-            document.body.appendChild(container);
-            
-            const opt = {
-                margin: 10,
-                filename: (fileName.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'document') + '.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            
-            await html2pdf().set(opt as any).from(container).save();
-            document.body.removeChild(container);
-            toast.success('PDF downloaded successfully');
+            await EnhancedPDFGenerator.generatePDF({
+                fileName: fileName,
+                fileContent: fileContent,
+                isMarkdown: isMarkdown
+            });
         } catch (error) {
-            console.error('PDF generation error:', error);
-            toast.error('Failed to generate PDF. Please try downloading as text.');
+            console.error('Enhanced PDF generation error:', error);
+            toast.error('Failed to generate enhanced PDF. Please try again.');
         }
     }, [fileContent, fileName, isMarkdown]);
 
@@ -259,9 +216,9 @@ export const FileViewDialog = React.memo<{
                                     onClick={handleDownloadPDF}
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 px-2"
+                                    className="h-8 px-3 text-primary hover:text-primary/80 hover:bg-primary/10"
                                 >
-                                    <FileDown size={16} className="mr-1" />
+                                    <FileDown size={16} className="mr-1.5" />
                                     PDF
                                 </Button>
                             </>
@@ -281,8 +238,12 @@ export const FileViewDialog = React.memo<{
                             <div className="p-4">
                                 {fileContent ? (
                                     isMarkdown ? (
-                                        <div className="rounded-md">
-                                            <MarkdownContent content={fileContent} />
+                                        <div className="rounded-md prose prose-sm max-w-none">
+                                            <EnhancedMarkdown 
+                                                content={fileContent} 
+                                                variant="default"
+                                                className="text-foreground"
+                                            />
                                         </div>
                                     ) : (
                                         <SyntaxHighlighter

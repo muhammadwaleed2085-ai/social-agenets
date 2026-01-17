@@ -20,6 +20,7 @@ import { FiSend } from "react-icons/fi";
 import { ChatMessage } from "./ChatMessage";
 import {
     ContentPromptSuggestion,
+    contentPromptSuggestions,
     getRandomPromptSuggestions,
 } from "../data/contentPrompts";
 import type {
@@ -63,7 +64,7 @@ export const ChatInterface = React.memo((props: ChatInterfaceProps) => {
     const [input, setInput] = useState("");
     const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
     const [promptSuggestions, setPromptSuggestions] = useState<ContentPromptSuggestion[]>(() =>
-        getRandomPromptSuggestions(6)
+        contentPromptSuggestions.slice(0, 6)
     );
     const { scrollRef, contentRef } = useStickToBottom();
     const todos = useContentStrategistStore(state => state.todos);
@@ -82,6 +83,10 @@ export const ChatInterface = React.memo((props: ChatInterfaceProps) => {
     useEffect(() => {
         resizeTextarea();
     }, [input, resizeTextarea]);
+
+    useEffect(() => {
+        setPromptSuggestions(getRandomPromptSuggestions(6));
+    }, []);
 
     const handleSubmit = useCallback(
         (e?: FormEvent) => {
