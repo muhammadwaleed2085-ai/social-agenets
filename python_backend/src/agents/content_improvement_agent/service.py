@@ -8,7 +8,7 @@ from langchain.agents import create_agent
 from .schemas import ImproveContentRequest, ImproveContentResponse, PLATFORM_GUIDELINES
 from .prompts import build_improvement_system_prompt
 from .middleware import SkillMiddleware
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from ...config import settings
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,9 @@ async def improve_content_description(
             user_prompt += f"\n\nAdditional Instructions: {request.additionalInstructions}"
         
         # Create model
-        model = ChatGoogleGenerativeAI(
-            model="gemini-2.5-pro",
-            google_api_key=settings.GOOGLE_API_KEY,
+        model = ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=settings.OPENAI_API_KEY,
             temperature=0.7,
         )
         

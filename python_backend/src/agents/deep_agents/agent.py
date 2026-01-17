@@ -23,7 +23,8 @@ from typing import Literal
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import MemorySaver
 from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend
+from deepagents.backends import StateBackend
+from ...config import settings
 
 # Directory containing this agent's files
 AGENT_DIR = Path(__file__).parent
@@ -163,21 +164,32 @@ def load_subagents(config_path: Path) -> list:
 # Agent Factory
 # =============================================================================
 
-def create_content_writer():
-    """Create a content writer agent configured by filesystem files."""
-    return create_deep_agent(
-        model="google_genai:gemini-2.5-flash",  # Use Gemini instead of default Claude
-        memory=["./AGENTS.md"],           # Loaded by MemoryMiddleware
-        skills=["./skills/"],             # Loaded by SkillsMiddleware
-        tools=[generate_cover, generate_social_image],  # Image generation
-        subagents=load_subagents(AGENT_DIR / "subagents.yaml"),  # Custom helper
-        backend=FilesystemBackend(root_dir=AGENT_DIR, virtual_mode=True),  # virtual_mode for Windows
-        checkpointer=MemorySaver(),  # In-memory short-term persistence
-    )
-
-
-# Global agent instance
+# Global instances for persistence
 _agent = None
+_checkpointer = MemorySaver()
+
+from langchain_openai import ChatOpenAI
+
+def create_content_writer():
+    """Create a content writer agent configured by filesystem files.
+    
+    Following official LangGraph patterns for persistent short-term memory.
+    """
+    if settings.OPENAI_API_KEY and not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+    llm = ChatOpenAI(
+        model="gpt-5-mini",
+        api_key=settings.OPENAI_API_KEY,
+    )
+    return create_deep_agent(
+        model=llm,
+        memory=["./AGENTS.md"],           # Static brand memory
+        skills=["./skills/"],             # Dynamic skills
+        tools=[generate_cover, generate_social_image],
+        subagents=load_subagents(AGENT_DIR / "subagents.yaml"),
+        backend=(lambda rt: StateBackend(rt)),  # Store files in state, not filesystem
+        checkpointer=_checkpointer,       # Persistent in-memory checkpointer
+    )
 
 
 def get_agent():

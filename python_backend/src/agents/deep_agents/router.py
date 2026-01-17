@@ -67,111 +67,198 @@ async def stream_agent_response(
     message: str,
     thread_id: str,
 ) -> AsyncGenerator[dict, None]:
-    """Stream agent response using values stream mode.
+    """Stream agent response using events stream mode.
     
-    This matches the content_writer.py streaming pattern from the reference.
-    
-    Yields SSE events:
-    - {"step": "streaming", "content": "..."}
-    - {"step": "tool_call", "id": "...", "name": "...", "args": {...}}
-    - {"step": "tool_result", "id": "...", "name": "...", "result": "..."}
-    - {"step": "sub_agent", "name": "...", "status": "..."}
-    - {"step": "done", "content": "..."}
-    - {"step": "error", "content": "..."}
+    This provides token-by-token streaming for a better UI experience.
     """
     try:
-        logger.info(f"Streaming chat - Thread: {thread_id}")
+        logger.info(f"Streaming chat - Thread: {thread_id}, Message: {message[:100]}")
         
         agent = get_agent()
+        config = {"configurable": {"thread_id": thread_id}}
         
-        # Track state
-        printed_count = 0
         accumulated_content = ""
-        seen_tool_calls = set()
+        accumulated_thinking = ""
         
-        # Stream using values mode (matches reference)
-        async for chunk in agent.astream(
-            {"messages": [("user", message)]},
-            config={"configurable": {"thread_id": thread_id}},
-            stream_mode="values",
+        # Checkpointer automatically handles message history via thread_id
+        async for event in agent.astream_events(
+            {"messages": [HumanMessage(content=message)]},
+            config=config,
+            version="v2",
         ):
-            if "messages" in chunk:
-                messages = chunk["messages"]
+            kind = event["event"]
+            name = event.get("name", "unknown")
+            
+            # 1. Handle Token Streaming (Content & Thinking)
+            if kind == "on_chat_model_stream":
+                chunk = event["data"]["chunk"]
                 
-                # Process only new messages
-                if len(messages) > printed_count:
-                    for msg in messages[printed_count:]:
+                # Check for reasoning/thinking content
+                thinking = chunk.additional_kwargs.get("reasoning_content") or \
+                           chunk.additional_kwargs.get("thought")
+                
+                if thinking:
+                    accumulated_thinking += thinking
+                    yield {"step": "thinking", "content": accumulated_thinking}
+                
+                # Handle regular content
+                content = chunk.content
+                if isinstance(content, str) and content:
+                    accumulated_content += content
+                    yield {"step": "streaming", "content": accumulated_content}
+                elif isinstance(content, list):
+                    for part in content:
+                        text_to_add = ""
+                        if isinstance(part, dict):
+                            if part.get("type") == "text":
+                                text_to_add = part.get("text", "")
+                            elif part.get("type") in ["thought", "reasoning"]:
+                                accumulated_thinking += part.get("text", "")
+                                yield {"step": "thinking", "content": accumulated_thinking}
+                        elif isinstance(part, str):
+                            text_to_add = part
                         
-                        # AI Messages
-                        if isinstance(msg, AIMessage):
-                            # Process content
-                            content = msg.content
-                            if isinstance(content, list):
-                                text_parts = [
-                                    p.get("text", "") 
-                                    for p in content 
-                                    if isinstance(p, dict) and p.get("type") == "text"
-                                ]
-                                content = "\n".join(text_parts)
-                            
-                            if content and content.strip():
-                                accumulated_content = content
-                                yield {"step": "streaming", "content": accumulated_content}
-                            
-                            # Tool calls
-                            if msg.tool_calls:
-                                for tc in msg.tool_calls:
-                                    tc_id = tc.get("id", "")
-                                    tc_name = tc.get("name", "unknown")
-                                    tc_args = tc.get("args", {})
-                                    
-                                    if tc_id and tc_id not in seen_tool_calls:
-                                        seen_tool_calls.add(tc_id)
-                                        
-                                        # Check if this is a sub-agent call (task tool)
-                                        if tc_name == "task":
-                                            desc = tc_args.get("description", "researching...")
-                                            yield {
-                                                "step": "sub_agent",
-                                                "id": tc_id,
-                                                "name": "researcher",
-                                                "status": "active",
-                                                "description": desc[:60],
-                                            }
-                                        else:
-                                            yield {
-                                                "step": "tool_call",
-                                                "id": tc_id,
-                                                "name": tc_name,
-                                                "args": tc_args,
-                                            }
+                        if text_to_add:
+                            accumulated_content += text_to_add
+                            yield {"step": "streaming", "content": accumulated_content}
+
+            # 1.1 Model End (no fallback in production)
+            elif kind == "on_chat_model_end":
+                logger.info(f"Model end: {name}")
+            
+            # 2. Handle State Updates (Todos, Files)
+            elif kind == "on_chain_end":
+                logger.info(f"Chain end: {name}")
+                # Sync on key middleware completions
+                if name in {"LangGraph", "agent", "TodoListMiddleware.after_model", "TodoListMiddleware", "FilesystemMiddleware", "tools"}:
+                    state = await agent.aget_state(config)
+                    if state and state.values:
+                        # Get todos and ensure each has an id
+                        raw_todos = state.values.get("todos", [])
+                        todos = []
+                        for i, todo in enumerate(raw_todos):
+                            todo_with_id = {
+                                "id": todo.get("id") or f"todo-{i}",
+                                "content": todo.get("content", ""),
+                                "status": todo.get("status", "pending"),
+                            }
+                            todos.append(todo_with_id)
                         
-                        # Tool Messages (results)
-                        elif isinstance(msg, ToolMessage):
-                            tc_id = getattr(msg, 'tool_call_id', '')
-                            tc_name = getattr(msg, 'name', 'tool')
-                            result = str(msg.content)[:500]  # Truncate long results
-                            
-                            if tc_name == "task":
-                                yield {
-                                    "step": "sub_agent",
-                                    "id": tc_id,
-                                    "name": "researcher",
-                                    "status": "completed",
-                                }
+                        # Get files from StateBackend and transform to frontend format
+                        # StateBackend stores: {path: {content: [...], created_at, modified_at}}
+                        # Frontend expects: {path: "content string"}
+                        raw_files = state.values.get("files", {})
+                        files = {}
+                        for path, file_data in raw_files.items():
+                            if isinstance(file_data, dict) and "content" in file_data:
+                                content = file_data["content"]
+                                # Content may be a list of lines or a string
+                                if isinstance(content, list):
+                                    files[path] = "\n".join(content)
+                                else:
+                                    files[path] = str(content)
+                            elif isinstance(file_data, str):
+                                files[path] = file_data
                             else:
-                                yield {
-                                    "step": "tool_result",
-                                    "id": tc_id,
-                                    "name": tc_name,
-                                    "result": result,
-                                }
-                    
-                    printed_count = len(messages)
-        
+                                files[path] = str(file_data)
+                        
+                        logger.info(f"Syncing state - Thread: {thread_id}, Todos: {len(todos)}, Files: {len(files)}")
+                        yield {
+                            "step": "sync",
+                            "todos": todos,
+                            "files": files,
+                        }
+            
+            # 3. Handle Tool Calls (filter out middleware tools from UI)
+            elif kind == "on_tool_start":
+                tool_name = event["name"]
+                logger.info(f"Tool start: {tool_name}")
+                
+                # Middleware tools to hide from UI
+                hidden_tools = {
+                    "write_file", "read_file", "edit_file", "ls", "glob", "grep", "execute",
+                    "write_todos", "read_todos",
+                }
+                
+                # Only emit tool_call for user-visible tools
+                if tool_name not in hidden_tools:
+                    yield {
+                        "step": "tool_call",
+                        "id": event["run_id"],
+                        "name": tool_name,
+                        "args": event["data"].get("input", {}),
+                    }
+                
+                # If it's the task tool, also signal sub_agent
+                if tool_name == "task":
+                    yield {
+                        "step": "sub_agent",
+                        "id": event["run_id"],
+                        "name": "researcher",
+                        "status": "active",
+                        "description": event["data"].get("input", {}).get("description", "Working..."),
+                    }
+            
+            # 4. Handle Tool Results (filter out middleware tools from UI)
+            elif kind == "on_tool_end":
+                tool_name = event["name"]
+                logger.info(f"Tool end: {tool_name}")
+                
+                # Middleware tools to hide from UI
+                hidden_tools = {
+                    "write_file", "read_file", "edit_file", "ls", "glob", "grep", "execute",
+                    "write_todos", "read_todos",
+                }
+                
+                # Only emit tool_result for user-visible tools
+                if tool_name not in hidden_tools:
+                    result = str(event["data"].get("output", ""))[:1000]
+                    yield {
+                        "step": "tool_result",
+                        "id": event["run_id"],
+                        "name": tool_name,
+                        "result": result,
+                    }
+                
+                if tool_name == "task":
+                    yield {
+                        "step": "sub_agent",
+                        "id": event["run_id"],
+                        "name": "researcher",
+                        "status": "completed",
+                    }
+                
+                # Sync state after state-changing tools (todos, files)
+                if tool_name in {"write_todos", "write_file", "edit_file"}:
+                    state = await agent.aget_state(config)
+                    if state and state.values:
+                        # Get todos with proper formatting
+                        raw_todos = state.values.get("todos", [])
+                        todos = [
+                            {
+                                "id": todo.get("id") or f"todo-{i}",
+                                "content": todo.get("content", ""),
+                                "status": todo.get("status", "pending"),
+                            }
+                            for i, todo in enumerate(raw_todos)
+                        ]
+                        
+                        # Get files with proper formatting
+                        raw_files = state.values.get("files", {})
+                        files = {}
+                        for path, file_data in raw_files.items():
+                            if isinstance(file_data, dict) and "content" in file_data:
+                                content = file_data["content"]
+                                files[path] = "\n".join(content) if isinstance(content, list) else str(content)
+                            else:
+                                files[path] = str(file_data) if not isinstance(file_data, str) else file_data
+                        
+                        logger.info(f"Tool sync - Todos: {len(todos)}, Files: {len(files)}")
+                        yield {"step": "sync", "todos": todos, "files": files}
+
         # Final done event
         yield {"step": "done", "content": accumulated_content}
-        logger.info(f"Streaming completed - Thread: {thread_id}")
+        logger.info(f"Streaming completed - Thread: {thread_id}, Content length: {len(accumulated_content)}")
         
     except Exception as e:
         logger.error(f"Streaming error: {e}", exc_info=True)
@@ -230,14 +317,51 @@ async def chat_stream(request: ChatRequest):
     )
 
 
-@router.post("/threads/{thread_id}/history")
+@router.get("/threads/{thread_id}/history")
 async def get_thread_history(thread_id: str):
-    """Get conversation history for a thread."""
-    return {
-        "success": True,
-        "threadId": thread_id,
-        "messages": [],
-    }
+    """Get conversation history for a thread from LangGraph checkpointer."""
+    logger.info(f"Get history - Thread: {thread_id}")
+    
+    try:
+        agent = get_agent()
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # Get state from checkpointer
+        state = await agent.aget_state(config)
+        
+        messages = []
+        if state and state.values and "messages" in state.values:
+            raw_messages = state.values["messages"]
+            
+            for msg in raw_messages:
+                # Format to UI expected structure
+                role = "assistant" if isinstance(msg, AIMessage) else "user" if isinstance(msg, HumanMessage) else "system"
+                
+                # Extract content string
+                content = msg.content
+                if isinstance(content, list):
+                    text_parts = [p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"]
+                    content = "\n".join(text_parts)
+                
+                messages.append({
+                    "role": role,
+                    "content": content,
+                    "timestamp": msg.additional_kwargs.get("timestamp", ""),
+                })
+        
+        return {
+            "success": True,
+            "threadId": thread_id,
+            "messages": messages,
+        }
+    except Exception as e:
+        logger.error(f"Failed to get thread history: {e}")
+        return {
+            "success": False,
+            "threadId": thread_id,
+            "messages": [],
+            "error": str(e),
+        }
 
 
 class ResumeRequest(BaseModel):

@@ -24,7 +24,7 @@ from .tools import (
     create_youtube_reply_tools,
 )
 from ...services import is_supabase_configured, db_insert, db_update
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from ...config import settings
 
 logger = logging.getLogger(__name__)
@@ -111,10 +111,10 @@ async def process_comments(request: ProcessCommentsRequest) -> ProcessCommentsRe
         elif has_youtube:
             logger.warning("YouTube requested but no access token provided")
         
-        # Initialize LLM - Google Gemini
-        model = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-exp",
-            google_api_key=settings.GOOGLE_API_KEY,
+        # Initialize LLM - OpenAI
+        model = ChatOpenAI(
+            model="gpt-4o-mini",
+            api_key=settings.OPENAI_API_KEY,
             temperature=0.3,
         )
         

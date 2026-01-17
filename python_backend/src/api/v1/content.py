@@ -66,6 +66,16 @@ async def chat_strategist(request: StrategistChatRequest):
     )
 
 
+@router.get("/strategist/history")
+async def get_history(threadId: str):
+    """
+    Get history for a specific thread.
+    Forwards to the deep_agents implementation.
+    """
+    from ...agents.deep_agents.router import get_thread_history
+    return await get_thread_history(threadId)
+
+
 @router.get("/strategist/health")
 async def health_check():
     """Health check endpoint."""
