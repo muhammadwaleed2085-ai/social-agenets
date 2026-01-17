@@ -352,29 +352,29 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ posts }) => {
         <div className="flex flex-col h-full bg-transparent">
             {/* Header - Matching Library Page Design */}
             <div className="sticky top-0 z-20 border-b bg-canva-gradient/95 backdrop-blur-sm shadow-sm">
-                <div className="relative px-6 py-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="relative px-3 py-1.5">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
                         {/* Left: Logo and Title */}
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-primary/10 rounded-xl">
-                                <BarChart3 className="w-6 h-6 text-primary" />
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-primary/10 rounded-lg">
+                                <BarChart3 className="w-5 h-5 text-primary" />
                             </div>
 
                             <div>
-                                <h1 className="text-lg font-bold text-foreground flex items-center gap-3">
+                                <h1 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                                     Social Media Analytics
-                                    <span className="bg-secondary text-secondary-foreground text-[11px] px-2 py-0.5 h-6 rounded-full inline-flex items-center">
+                                    <span className="bg-secondary text-secondary-foreground text-[9px] px-1.5 py-0 h-4 rounded-full inline-flex items-center">
                                         Insights
                                     </span>
                                 </h1>
-                                <p className="text-muted-foreground text-sm mt-0.5">
+                                <p className="text-muted-foreground text-[11px]">
                                     In-depth performance insights for Facebook, Instagram, TikTok & YouTube
                                 </p>
                             </div>
                         </div>
 
                         {/* Right: Time Range Tabs */}
-                        <div className="flex gap-1.5 p-1.5 bg-muted/50 rounded-xl">
+                        <div className="flex gap-0.5 p-0.5 bg-muted/50 rounded-md">
                             {(['7d', '30d', 'all'] as const).map((range) => {
                                 const isActive = timeRange === range;
                                 const label = range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : 'All Time';
@@ -382,7 +382,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ posts }) => {
                                     <button
                                         key={range}
                                         onClick={() => setTimeRange(range)}
-                                        className={`px-4 py-2 rounded-lg text-[13px] transition-all duration-200 ${isActive
+                                        className={`px-2 py-0.5 rounded-md text-[10px] transition-all duration-200 ${isActive
                                             ? 'bg-primary text-primary-foreground shadow-sm font-medium'
                                             : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                             }`}
@@ -397,7 +397,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ posts }) => {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 p-6 overflow-auto space-y-6">
+            <div className="flex-1 p-3 overflow-auto space-y-6">
                 {/* Production-ready: Handle empty state */}
                 {stats.totalPosts === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">

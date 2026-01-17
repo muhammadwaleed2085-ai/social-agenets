@@ -132,18 +132,18 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
             <div className="flex flex-col h-full bg-transparent">
                 {/* Header - Library Style */}
                 <div className="sticky top-0 z-20 border-b bg-canva-gradient/95 backdrop-blur-sm shadow-sm">
-                    <div className="relative px-6 py-4">
+                    <div className="relative px-3 py-1.5">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="p-2 bg-primary/10 rounded-xl">
-                                    <BookCheck className="w-6 h-6 text-primary" />
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 bg-primary/10 rounded-lg">
+                                    <BookCheck className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h1 className="text-lg font-bold text-foreground flex items-center gap-3">
+                                    <h1 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                                         Publishing Studio
-                                        <Badge variant="secondary" className="px-2 py-0.5 h-6">0 items</Badge>
+                                        <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px]">0 items</Badge>
                                     </h1>
-                                    <p className="text-muted-foreground text-sm mt-0.5">Publish and schedule your content</p>
+                                    <p className="text-muted-foreground text-[11px]">Publish and schedule your content</p>
                                 </div>
                             </div>
                         </div>
@@ -164,46 +164,46 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
         <div className="flex flex-col h-full bg-transparent">
             {/* Header & Filters - Library Style */}
             <div className="sticky top-0 z-20 border-b bg-canva-gradient/95 backdrop-blur-sm shadow-sm">
-                <div className="relative px-6 py-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="relative px-3 py-1.5">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
                         {/* Left - Title */}
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-primary/10 rounded-xl">
-                                <BookCheck className="w-6 h-6 text-primary" />
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 bg-primary/10 rounded-lg">
+                                <BookCheck className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-lg font-bold text-foreground flex items-center gap-3">
+                                <h1 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                                     Publishing Studio
-                                    <Badge variant="secondary" className="px-2 py-0.5 h-6">{postsForPublishing.length} items</Badge>
+                                    <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px]">{postsForPublishing.length} items</Badge>
                                 </h1>
-                                <p className="text-muted-foreground text-sm mt-0.5">Publish and schedule your content</p>
+                                <p className="text-muted-foreground text-[11px]">Publish and schedule your content</p>
                             </div>
                         </div>
 
                         {/* Right - Filter Buttons */}
-                        <div className="flex flex-wrap gap-2.5 items-center">
+                        <div className="flex flex-wrap gap-1.5 items-center">
                             {/* Filter Tabs */}
-                            <div className="flex gap-1.5 p-1.5 bg-muted/50 rounded-xl">
+                            <div className="flex gap-0.5 p-0.5 bg-muted/50 rounded-md">
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'all' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors ${statusFilter === 'all' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setStatusFilter('all')}
                                 >
                                     All
                                 </button>
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'ready_to_publish' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors ${statusFilter === 'ready_to_publish' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setStatusFilter('ready_to_publish')}
                                 >
                                     Ready
                                 </button>
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'scheduled' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors ${statusFilter === 'scheduled' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setStatusFilter('scheduled')}
                                 >
                                     Scheduled
                                 </button>
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors ${statusFilter === 'published' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors ${statusFilter === 'published' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setStatusFilter('published')}
                                 >
                                     Published
@@ -211,38 +211,38 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
                             </div>
 
                             {/* Type Filters */}
-                            <div className="flex gap-1.5 p-1.5 bg-muted/50 rounded-xl">
+                            <div className="flex gap-0.5 p-0.5 bg-muted/50 rounded-md">
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-1.5 ${typeFilter === 'image' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors flex items-center gap-1 ${typeFilter === 'image' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setTypeFilter('image')}
                                 >
-                                    <ImageIcon className="w-3.5 h-3.5" /> Images
+                                    <ImageIcon className="w-2.5 h-2.5" /> Images
                                 </button>
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-1.5 ${typeFilter === 'video' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors flex items-center gap-1 ${typeFilter === 'video' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setTypeFilter('video')}
                                 >
-                                    <Video className="w-3.5 h-3.5" /> Videos
+                                    <Video className="w-2.5 h-2.5" /> Videos
                                 </button>
                                 <button
-                                    className={`px-3 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-1.5 ${typeFilter === 'carousel' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] transition-colors flex items-center gap-1 ${typeFilter === 'carousel' ? 'bg-primary text-primary-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                     onClick={() => setTypeFilter('carousel')}
                                 >
-                                    <Layers className="w-3.5 h-3.5" /> Carousel
+                                    <Layers className="w-2.5 h-2.5" /> Carousel
                                 </button>
                             </div>
 
                             {/* Platform Filters */}
-                            <div className="flex gap-1.5 p-1.5 bg-muted/50 rounded-xl">
+                            <div className="flex gap-0.5 p-0.5 bg-muted/50 rounded-md">
                                 {PLATFORMS.map(platform => {
                                     const Icon = platform.icon;
                                     return (
                                         <button
                                             key={platform.id}
-                                            className={`p-2 rounded-lg transition-colors ${platformFilter === platform.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                            className={`p-1.5 rounded-md transition-colors ${platformFilter === platform.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                             onClick={() => setPlatformFilter(platform.id as Platform)}
                                         >
-                                            <Icon className="w-4 h-4" />
+                                            <Icon className="w-3 h-3" />
                                         </button>
                                     );
                                 })}
@@ -252,9 +252,9 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
                             {hasActiveFilters && (
                                 <button
                                     onClick={clearFilters}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+                                    className="flex items-center gap-1 px-2.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-md transition-colors"
                                 >
-                                    <X className="w-3.5 h-3.5" /> Clear
+                                    <X className="w-3 h-3" /> Clear
                                 </button>
                             )}
                         </div>
