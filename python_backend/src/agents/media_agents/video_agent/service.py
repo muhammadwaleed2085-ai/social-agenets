@@ -489,8 +489,12 @@ async def get_video_status(request: VideoStatusRequest) -> VideoStatusResponse:
         
         logger.info(f"[Veo] Status check: {request.operationName}")
         
-        # Get operation using the full name
-        operation = client.operations.get(name=request.operationName)
+        # Recreate operation object from the stored name (per official docs)
+        # This allows polling from a separate request with just the operation name
+        operation_obj = types.GenerateVideosOperation(name=request.operationName)
+        
+        # Get latest operation status
+        operation = client.operations.get(operation_obj)
         
         if not operation.done:
             return VideoStatusResponse(
@@ -545,52 +549,72 @@ async def get_video_status(request: VideoStatusRequest) -> VideoStatusResponse:
 
 async def download_video(request: VideoDownloadRequest) -> VideoDownloadResponse:
     """
-    Download completed video and optionally upload to Supabase
+    Download completed video and upload to Cloudinary for permanent storage.
+    
+    Per official docs:
+    - client.files.download(file=video) populates video with actual bytes
+    - video.video_bytes contains the binary data after download
     """
     try:
         client = get_genai_client()
         
         logger.info(f"[Veo] Download: veoVideoId={request.veoVideoId[:50]}...")
         
-        # Create video reference
+        # Create video reference from the Veo video ID/name
         video_ref = types.Video(name=request.veoVideoId)
         
-        # Download video
+        # Download video - this populates video_ref with actual data
         client.files.download(file=video_ref)
         
-        # Get the downloaded file path/URL
-        video_url = getattr(video_ref, "uri", None) or str(video_ref)
+        # Get video bytes from the downloaded reference
+        video_bytes = getattr(video_ref, "video_bytes", None)
         
-        # Optionally upload to Supabase
-        if request.uploadToSupabase:
-            try:
-                import httpx
-                from src.services.storage_service import StorageService
-                
-                # Download video bytes
-                async with httpx.AsyncClient(timeout=120.0) as http_client:
-                    response = await http_client.get(video_url)
-                    if response.status_code == 200:
-                        video_data = response.content
-                        
-                        # Upload to Supabase
-                        filename = f"veo_{request.operationId or 'video'}_{int(time.time())}.mp4"
-                        result = await StorageService.upload_file(
-                            file_data=video_data,
-                            bucket="videos",
-                            path=f"veo/{filename}",
-                            content_type="video/mp4"
-                        )
-                        
-                        if result.get("success"):
-                            video_url = result.get("url", video_url)
-                            logger.info(f"[Veo] Uploaded to Supabase: {filename}")
-                        
-            except Exception as e:
-                logger.warning(f"[Veo] Supabase upload failed: {e}")
+        if not video_bytes:
+            # Try alternative property names
+            video_bytes = getattr(video_ref, "_video_bytes", None) or getattr(video_ref, "data", None)
         
-        return VideoDownloadResponse(success=True, url=video_url)
+        if not video_bytes:
+            return VideoDownloadResponse(
+                success=False, 
+                error="Failed to download video bytes from Veo"
+            )
+        
+        # Upload to Cloudinary for permanent storage
+        import httpx
+        import base64
+        
+        # Prepare upload to Cloudinary via backend proxy
+        form_data = {
+            "file": f"data:video/mp4;base64,{base64.b64encode(video_bytes).decode('utf-8')}",
+            "folder": "veo-videos",
+            "tags": "veo,generated"
+        }
+        
+        async with httpx.AsyncClient(timeout=120.0) as http_client:
+            # Use the Cloudinary upload endpoint
+            upload_response = await http_client.post(
+                "http://localhost:8000/api/v1/cloudinary/upload/video",
+                json=form_data
+            )
+            
+            if upload_response.status_code == 200:
+                result = upload_response.json()
+                if result.get("success"):
+                    video_url = result.get("secure_url") or result.get("url")
+                    logger.info(f"[Veo] Uploaded to Cloudinary: {video_url}")
+                    return VideoDownloadResponse(success=True, url=video_url)
+        
+        # Fallback: try to get URI from video reference
+        video_url = getattr(video_ref, "uri", None)
+        if video_url:
+            return VideoDownloadResponse(success=True, url=video_url)
+        
+        return VideoDownloadResponse(
+            success=False, 
+            error="Failed to upload video to storage"
+        )
         
     except Exception as e:
         logger.error(f"[Veo] Download error: {e}", exc_info=True)
         return VideoDownloadResponse(success=False, error=str(e))
+
