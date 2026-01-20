@@ -20,28 +20,28 @@ interface Props {
 
 // Helper to detect if URL is a video
 const isVideoUrl = (url: string): boolean => {
-  return !!(url?.match(/\.(mp4|webm|mov|avi|mkv)(\?|$)/i) || 
-           url?.includes('video') ||
-           url?.startsWith('data:video/'));
+  return !!(url?.match(/\.(mp4|webm|mov|avi|mkv)(\?|$)/i) ||
+    url?.includes('video') ||
+    url?.startsWith('data:video/'));
 };
 
 export function TwitterCarouselTemplate({ post, content, media, mode, className = '', title, hashtags = [] }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0)
-  
+
   // Support carouselImages array from post (can include videos)
-  const carouselUrls = post.carouselImages && post.carouselImages.length > 0 
+  const carouselUrls = post.carouselImages && post.carouselImages.length > 0
     ? post.carouselImages.map(url => ({ url, type: isVideoUrl(url) ? 'video' : 'image' }))
     : []
-  
+
   // Build display items from media or carouselUrls
-  const displayItems = carouselUrls.length > 0 
-    ? carouselUrls 
-    : media.length > 0 
+  const displayItems = carouselUrls.length > 0
+    ? carouselUrls
+    : media.length > 0
       ? media.map(m => ({ url: m.url, type: m.type }))
       : post.generatedVideoUrl
         ? [{ url: post.generatedVideoUrl, type: 'video' }]
-        : post.generatedImage 
-          ? [{ url: post.generatedImage, type: 'image' }] 
+        : post.generatedImage
+          ? [{ url: post.generatedImage, type: 'image' }]
           : []
 
   const nextSlide = () => {
@@ -56,10 +56,10 @@ export function TwitterCarouselTemplate({ post, content, media, mode, className 
   const isCurrentVideo = currentItem?.type === 'video'
 
   // Combine content with hashtags
-  const fullContent = hashtags.length > 0 
+  const fullContent = hashtags.length > 0
     ? `${content}\n\n${hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ')}`
     : content;
-    
+
   // Character count
   const charCount = fullContent.length
   const maxChars = 280
@@ -103,14 +103,14 @@ export function TwitterCarouselTemplate({ post, content, media, mode, className 
 
       {/* Carousel Container */}
       {displayItems.length > 0 && (
-        <div className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-black">
+        <div className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-white">
           <div className="aspect-video relative">
             {/* Render video or image based on current item type */}
             {isCurrentVideo ? (
               <video
                 key={currentSlide}
                 src={currentItem?.url}
-                className="w-full h-full object-contain bg-black"
+                className="w-full h-full object-cover"
                 controls
                 playsInline
               />
@@ -118,7 +118,7 @@ export function TwitterCarouselTemplate({ post, content, media, mode, className 
               <img
                 src={currentItem?.url}
                 alt={`Slide ${currentSlide + 1}`}
-                className="w-full h-full object-contain bg-black"
+                className="w-full h-full object-cover"
               />
             )}
 
@@ -127,15 +127,15 @@ export function TwitterCarouselTemplate({ post, content, media, mode, className 
               <>
                 <button
                   onClick={prevSlide}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black/90 text-white p-1.5 rounded-full transition"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black/90 text-white p-1 rounded-full transition"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black/90 text-white p-1.5 rounded-full transition"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black/90 text-white p-1 rounded-full transition"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </>
             )}
@@ -144,14 +144,6 @@ export function TwitterCarouselTemplate({ post, content, media, mode, className 
             {displayItems.length > 1 && (
               <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded-full text-xs font-medium">
                 {currentSlide + 1}/{displayItems.length}
-              </div>
-            )}
-
-            {/* Media type badge */}
-            {(displayItems.length > 1 || isCurrentVideo) && (
-              <div className="absolute top-2 left-2 bg-[#1D9BF0] text-white px-2 py-0.5 rounded text-xs font-semibold flex items-center gap-1">
-                {isCurrentVideo ? <Play className="w-3 h-3" /> : null}
-                {displayItems.length > 1 ? 'CAROUSEL' : 'VIDEO'}
               </div>
             )}
           </div>
@@ -163,9 +155,8 @@ export function TwitterCarouselTemplate({ post, content, media, mode, className 
                 <button
                   key={idx}
                   onClick={() => setCurrentSlide(idx)}
-                  className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    idx === currentSlide ? 'bg-white' : 'bg-white/50'
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentSlide ? 'bg-white' : 'bg-white/50'
+                    }`}
                 />
               ))}
             </div>

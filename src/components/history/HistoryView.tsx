@@ -263,7 +263,7 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 p-2 overflow-auto">
+            <div className="flex-1 p-1 overflow-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 {postsForPublishing.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-center py-8">
@@ -275,8 +275,8 @@ const PublishedView: React.FC<PublishedViewProps> = ({ posts = [], onUpdatePost,
                     </div>
                 ) : (
                     <div className={viewMode === 'grid'
-                        ? "columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4"
-                        : "flex flex-col gap-1.5"
+                        ? "columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-1"
+                        : "flex flex-col gap-1"
                     }>
                         {postsForPublishing.map(post => (
                             <PublishedCard

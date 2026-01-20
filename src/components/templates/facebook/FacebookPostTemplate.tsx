@@ -10,11 +10,11 @@ import { ThumbsUp, MessageCircle, Share2, Globe } from 'lucide-react'
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton'
 import { PlatformTemplateProps } from '../types'
 
-export function FacebookPostTemplate({ 
-  post, 
-  content, 
-  media, 
-  mode, 
+export function FacebookPostTemplate({
+  post,
+  content,
+  media,
+  mode,
   className = '',
   title,
   hashtags = [],
@@ -56,7 +56,7 @@ export function FacebookPostTemplate({
       {/* Content Text */}
       <div className="px-3 pb-3">
         <p className="text-sm text-gray-900 break-words whitespace-pre-wrap">
-          {title && <span className="font-bold text-base">{title}<br/><br/></span>}
+          {title && <span className="font-bold text-base">{title}<br /><br /></span>}
           {content.length > 63206 ? content.substring(0, 63203) + '...' : content}
           {hashtags.length > 0 && (
             <span className="text-blue-600 block mt-2">
@@ -68,7 +68,7 @@ export function FacebookPostTemplate({
 
       {/* Image/Video */}
       {(imageUrl || videoUrl) && (
-        <div className="w-full bg-black relative">
+        <div className="w-full bg-white relative overflow-hidden">
           {mediaLoading && <LoadingSkeleton type="image" className="absolute inset-0" />}
           {videoUrl ? (
             <video

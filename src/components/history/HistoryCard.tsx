@@ -181,9 +181,40 @@ const PublishedCard: React.FC<PublishedCardProps> = ({ post, onUpdatePost, onDel
         if (!isPreviewOpen) return null;
         const media = buildMediaArray();
 
+        // Determine the correct postType for template routing
+        const getEffectivePostType = () => {
+            // If post.postType is explicitly set, use it
+            if (post.postType && post.postType !== 'post') {
+                return post.postType;
+            }
+
+            // Infer from media
+            if (post.carouselImages && post.carouselImages.length > 1) {
+                return 'carousel';
+            }
+            if (post.generatedVideoUrl) {
+                // For video content, determine type based on platform
+                if (activePlatform === 'youtube') {
+                    return 'short'; // YouTube Shorts
+                }
+                if (activePlatform === 'tiktok') {
+                    return 'video'; // TikTok video
+                }
+                return 'reel'; // Default to reel for Instagram/Facebook
+            }
+            if (post.generatedImage || (post.carouselImages && post.carouselImages.length === 1)) {
+                return 'feed'; // Single image = feed post
+            }
+            return 'post'; // Fallback
+        };
+
         return (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setIsPreviewOpen(false)}>
-                <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto scrollbar-hide rounded-xl" onClick={e => e.stopPropagation()}>
+                <div
+                    className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto scrollbar-hide rounded-xl"
+                    onClick={e => e.stopPropagation()}
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                     <button
                         onClick={() => setIsPreviewOpen(false)}
                         className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white"
@@ -193,7 +224,7 @@ const PublishedCard: React.FC<PublishedCardProps> = ({ post, onUpdatePost, onDel
                     <PlatformTemplateRenderer
                         post={post}
                         platform={activePlatform}
-                        postType={post.postType || 'post'}
+                        postType={getEffectivePostType()}
                         media={media}
                         mode="preview"
                     />
@@ -205,7 +236,7 @@ const PublishedCard: React.FC<PublishedCardProps> = ({ post, onUpdatePost, onDel
     return (
         <>
             <div
-                className="group relative bg-muted rounded-xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ease-out cursor-pointer border border-border/50 break-inside-avoid mb-4 inline-block w-full align-top"
+                className="group relative bg-muted rounded-lg overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ease-out cursor-pointer border border-border/50 break-inside-avoid mb-1 inline-block w-full align-top"
                 onClick={() => setIsPreviewOpen(true)}
             >
                 {/* Media Content */}
@@ -225,15 +256,6 @@ const PublishedCard: React.FC<PublishedCardProps> = ({ post, onUpdatePost, onDel
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
                         <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
-                    </div>
-                )}
-
-                {/* Video/Carousel Overlays */}
-                {isVideo && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                            <Play className="w-5 h-5 text-white fill-white ml-0.5" />
-                        </div>
                     </div>
                 )}
 

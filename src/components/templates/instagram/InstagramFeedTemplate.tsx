@@ -10,11 +10,11 @@ import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight } from 
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton'
 import { PlatformTemplateProps } from '../types'
 
-export function InstagramFeedTemplate({ 
-  post, 
-  content, 
-  media, 
-  mode, 
+export function InstagramFeedTemplate({
+  post,
+  content,
+  media,
+  mode,
   className = '',
   title,
   hashtags = [],
@@ -23,24 +23,24 @@ export function InstagramFeedTemplate({
 }: PlatformTemplateProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [mediaLoading, setMediaLoading] = useState(true)
-  
+
   // Get all media (images and videos)
   const allMedia: MediaAsset[] = []
-  
+
   // Add images from media array
   media.filter((m) => m.type === 'image').forEach(img => {
     if (!allMedia.find(m => m.url === img.url)) {
       allMedia.push(img)
     }
   })
-  
+
   // Add videos from media array
   media.filter((m) => m.type === 'video').forEach(vid => {
     if (!allMedia.find(m => m.url === vid.url)) {
       allMedia.push(vid)
     }
   })
-  
+
   // Add generated image if not already in list
   if (post.generatedImage && !allMedia.find(m => m.url === post.generatedImage)) {
     allMedia.push({
@@ -55,7 +55,7 @@ export function InstagramFeedTemplate({
       usedInPosts: [post.id]
     })
   }
-  
+
   // Add generated video if not already in list
   if (post.generatedVideoUrl && !allMedia.find(m => m.url === post.generatedVideoUrl)) {
     allMedia.push({
@@ -108,14 +108,14 @@ export function InstagramFeedTemplate({
       </div>
 
       {/* Media Carousel (Images and Videos) */}
-      <div className="w-full aspect-square bg-black relative overflow-hidden">
+      <div className="w-full aspect-square bg-white relative overflow-hidden">
         {mediaLoading && <LoadingSkeleton type="image" className="absolute inset-0" />}
         {currentMedia ? (
           <>
             {isVideo ? (
               <video
                 src={currentMedia.url}
-                className={`w-full h-full object-contain transition-opacity duration-300 ${mediaLoading ? 'opacity-0' : 'opacity-100'}`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoading ? 'opacity-0' : 'opacity-100'}`}
                 controls
                 playsInline
                 onLoadedData={() => setMediaLoading(false)}
@@ -124,11 +124,11 @@ export function InstagramFeedTemplate({
               <img
                 src={currentMedia.url}
                 alt="Post content"
-                className={`w-full h-full object-contain transition-opacity duration-300 ${mediaLoading ? 'opacity-0' : 'opacity-100'}`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoading ? 'opacity-0' : 'opacity-100'}`}
                 onLoad={() => setMediaLoading(false)}
               />
             )}
-            
+
             {/* Carousel Navigation */}
             {hasMultipleMedia && (
               <>
@@ -144,15 +144,14 @@ export function InstagramFeedTemplate({
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
-                
+
                 {/* Carousel Dots */}
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1">
                   {allMedia.map((_: MediaAsset, idx: number) => (
                     <div
                       key={idx}
-                      className={`w-1.5 h-1.5 rounded-full transition-all ${
-                        idx === currentMediaIndex ? 'bg-blue-500 w-2 h-2' : 'bg-white/60'
-                      }`}
+                      className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentMediaIndex ? 'bg-blue-500 w-2 h-2' : 'bg-white/60'
+                        }`}
                     />
                   ))}
                 </div>
@@ -160,8 +159,8 @@ export function InstagramFeedTemplate({
             )}
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-            <p className="text-gray-400">No media</p>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+            <p className="text-gray-400">No media available</p>
           </div>
         )}
       </div>
@@ -194,7 +193,7 @@ export function InstagramFeedTemplate({
         <div className="text-sm">
           <span className="font-semibold">your_account </span>
           <span className="text-gray-800 break-words whitespace-pre-wrap">
-            {title && <span className="font-semibold">{title}<br/></span>}
+            {title && <span className="font-semibold">{title}<br /></span>}
             {content.length > 2200 ? content.substring(0, 2197) + '...' : content}
             {hashtags.length > 0 && (
               <span className="text-blue-900 block mt-1">

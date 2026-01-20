@@ -18,28 +18,28 @@ interface Props {
 
 // Helper to detect if URL is a video
 const isVideoUrl = (url: string): boolean => {
-  return !!(url?.match(/\.(mp4|webm|mov|avi|mkv)(\?|$)/i) || 
-           url?.includes('video') ||
-           url?.startsWith('data:video/'));
+  return !!(url?.match(/\.(mp4|webm|mov|avi|mkv)(\?|$)/i) ||
+    url?.includes('video') ||
+    url?.startsWith('data:video/'));
 };
 
 export function InstagramCarouselTemplate({ post, content, media, mode, className = '' }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0)
-  
+
   // Support carouselImages array from post (can include videos)
-  const carouselUrls = post.carouselImages && post.carouselImages.length > 0 
+  const carouselUrls = post.carouselImages && post.carouselImages.length > 0
     ? post.carouselImages.map(url => ({ url, type: isVideoUrl(url) ? 'video' : 'image' }))
     : []
-  
+
   // Build display items from media or carouselUrls
-  const displayItems = carouselUrls.length > 0 
-    ? carouselUrls 
-    : media.length > 0 
+  const displayItems = carouselUrls.length > 0
+    ? carouselUrls
+    : media.length > 0
       ? media.map(m => ({ url: m.url, type: m.type }))
       : post.generatedVideoUrl
         ? [{ url: post.generatedVideoUrl, type: 'video' }]
-        : post.generatedImage 
-          ? [{ url: post.generatedImage, type: 'image' }] 
+        : post.generatedImage
+          ? [{ url: post.generatedImage, type: 'image' }]
           : []
 
   const nextSlide = () => {
@@ -78,7 +78,7 @@ export function InstagramCarouselTemplate({ post, content, media, mode, classNam
       </div>
 
       {/* Carousel Container */}
-      <div className="relative w-full aspect-square bg-black">
+      <div className="relative w-full aspect-square bg-white overflow-hidden">
         {displayItems.length > 0 ? (
           <>
             {/* Render video or image based on current item type */}
@@ -86,7 +86,7 @@ export function InstagramCarouselTemplate({ post, content, media, mode, classNam
               <video
                 key={currentSlide}
                 src={currentItem?.url}
-                className="w-full h-full object-contain bg-black"
+                className="w-full h-full object-cover"
                 controls
                 playsInline
               />
@@ -94,7 +94,7 @@ export function InstagramCarouselTemplate({ post, content, media, mode, classNam
               <img
                 src={currentItem?.url}
                 alt={`Slide ${currentSlide + 1}`}
-                className="w-full h-full object-contain bg-black"
+                className="w-full h-full object-cover"
               />
             )}
 
@@ -103,15 +103,15 @@ export function InstagramCarouselTemplate({ post, content, media, mode, classNam
               <>
                 <button
                   onClick={prevSlide}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full transition shadow-lg"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-1.5 rounded-full transition shadow-md"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full transition shadow-lg"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-1.5 rounded-full transition shadow-md"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </>
             )}
@@ -128,23 +128,16 @@ export function InstagramCarouselTemplate({ post, content, media, mode, classNam
                   <button
                     key={idx}
                     onClick={() => setCurrentSlide(idx)}
-                    className={`h-2 rounded-full transition-all ${
-                      idx === currentSlide ? 'bg-[#0095F6] w-2' : 'bg-white/60 w-2 hover:bg-white/80'
-                    }`}
+                    className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'bg-[#0095F6] w-2' : 'bg-white/60 w-2 hover:bg-white/80'
+                      }`}
                   />
                 ))}
               </div>
             )}
-
-            {/* Media type badge */}
-            <div className="absolute top-3 left-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-              {isCurrentVideo ? <Play className="w-3 h-3" /> : null}
-              {displayItems.length > 1 ? 'CAROUSEL' : isCurrentVideo ? 'VIDEO' : 'POST'}
-            </div>
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <p className="text-gray-500 text-sm">No media</p>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+            <p className="text-gray-400 text-sm">No media available</p>
           </div>
         )}
       </div>

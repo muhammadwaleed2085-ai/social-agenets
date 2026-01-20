@@ -1031,17 +1031,17 @@ export function MediaGallery({
 
       {/* Grid View */}
       {viewMode === 'grid' && totalItems > 0 && !isLoading && (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4">
+        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-1">
           {allItems.map((item) => {
             const selected = isItemSelected(item.id);
             return (
               <div
                 key={item.id}
                 className={`
-                ms-gallery-item group relative bg-muted rounded-xl overflow-hidden cursor-pointer 
-                break-inside-avoid mb-4 inline-block w-full align-top
+                ms-gallery-item group relative bg-muted rounded-lg overflow-hidden cursor-pointer 
+                break-inside-avoid mb-1 inline-block w-full align-top
                 transition-all duration-300 ease-out
-                hover:shadow-lg hover:-translate-y-1
+                hover:shadow-lg hover:-translate-y-0.5
                 ${isSelectMode && selected ? 'ring-2 ring-[var(--ms-primary)] ring-offset-2' : ''}
               `}
                 onClick={() => isSelectMode ? toggleItemSelection(item) : setSelectedItem(item)}
@@ -1276,27 +1276,30 @@ export function MediaGallery({
       {/* Detail Modal */}
       {selectedItem && 'url' in selectedItem && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedItem(null)}>
-          <div className="bg-background rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold">Media Details</h3>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+          <div className="bg-background rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto relative scrollbar-hide" onClick={(e) => e.stopPropagation()} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {/* Close Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedItem(null)}
+              className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full h-8 w-8 p-0"
+            >
+              <X className="w-4 h-4" />
+            </Button>
             <div className="p-4 space-y-4">
               {selectedItem.url && (
-                <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                <div className="bg-white rounded-lg overflow-hidden flex items-center justify-center">
                   {('type' in selectedItem && (selectedItem as MediaItem).type === 'image') ? (
-                    <img src={selectedItem.url} alt={selectedItem.prompt} className="w-full h-full object-contain" />
+                    <img src={selectedItem.url} alt={selectedItem.prompt} className="w-full h-auto max-h-[60vh] object-contain" />
                   ) : ('type' in selectedItem && (selectedItem as MediaItem).type === 'audio') ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-black/5 p-8 relative">
+                    <div className="w-full aspect-video flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-8 relative">
                       <div className="w-full max-w-md h-32 mb-8">
                         <AudioWaveform isPlaying={true} barCount={60} />
                       </div>
                       <audio src={selectedItem.url} controls className="w-full max-w-md z-10" autoPlay />
                     </div>
                   ) : (
-                    <video src={selectedItem.url} controls className="w-full h-full" />
+                    <video src={selectedItem.url} controls className="w-full max-h-[60vh]" />
                   )}
                 </div>
               )}
