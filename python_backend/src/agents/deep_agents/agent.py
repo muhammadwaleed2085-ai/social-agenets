@@ -22,8 +22,7 @@ from typing import Literal
 
 from langchain_core.tools import tool
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.checkpoint.postgres import PostgresSaver
-import psycopg
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from deepagents import create_deep_agent
 from deepagents.backends import StateBackend
 from ...config import settings
@@ -209,29 +208,40 @@ def get_checkpointer():
 async def init_checkpointer():
     """Initialize the checkpointer at startup.
     
-    Creates PostgresSaver if DATABASE_URL is configured, otherwise uses MemorySaver.
+    Creates AsyncPostgresSaver if DATABASE_URL is configured, otherwise uses MemorySaver.
     """
     global _checkpointer, _checkpointer_context
     
     if _checkpointer is not None:
         return _checkpointer
     
-    if settings.DATABASE_URL:
+    db_url = settings.DATABASE_URL
+    
+    # Debug: Log whether DATABASE_URL is configured (without exposing the full URL)
+    if db_url:
+        # Mask the URL for security (show only protocol and first few chars)
+        masked = db_url[:20] + "..." if len(db_url) > 20 else db_url
+        logger.info(f"DATABASE_URL configured: {masked}")
+    else:
+        logger.warning("DATABASE_URL is NOT set in environment!")
+    
+    if db_url:
         try:
-            logger.info("Initializing PostgresSaver with DATABASE_URL...")
-            # Create the context manager and enter it
-            _checkpointer_context = PostgresSaver.from_conn_string(settings.DATABASE_URL)
+            logger.info("Initializing AsyncPostgresSaver with DATABASE_URL...")
+            # AsyncPostgresSaver.from_conn_string returns an ASYNC context manager
+            _checkpointer_context = AsyncPostgresSaver.from_conn_string(db_url)
             _checkpointer = await _checkpointer_context.__aenter__()
             
-            # Setup tables (creates if not exists)
+            # Setup tables (creates if not exists) - asetup is async
             await _checkpointer.setup()
-            logger.info("PostgresSaver initialized successfully - chat history will persist!")
+            logger.info("✅ AsyncPostgresSaver initialized successfully - chat history will persist!")
         except Exception as e:
-            logger.warning(f"Failed to initialize PostgresSaver: {e}. Falling back to MemorySaver.")
+            logger.error(f"❌ Failed to initialize AsyncPostgresSaver: {e}")
+            logger.warning("Falling back to MemorySaver - chat history will be lost on restart!")
             _checkpointer = MemorySaver()
             _checkpointer_context = None
     else:
-        logger.warning("DATABASE_URL not configured - using MemorySaver (history lost on restart)")
+        logger.warning("⚠️ DATABASE_URL not configured - using MemorySaver (history lost on restart)")
         _checkpointer = MemorySaver()
     
     return _checkpointer
@@ -243,8 +253,9 @@ async def cleanup_checkpointer():
     
     if _checkpointer_context is not None:
         try:
+            # AsyncPostgresSaver uses ASYNC context manager
             await _checkpointer_context.__aexit__(None, None, None)
-            logger.info("PostgresSaver connection pool closed")
+            logger.info("AsyncPostgresSaver connection pool closed")
         except Exception as e:
             logger.warning(f"Error closing checkpointer: {e}")
 
