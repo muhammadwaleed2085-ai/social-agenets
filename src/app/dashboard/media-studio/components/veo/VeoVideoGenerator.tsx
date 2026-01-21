@@ -62,7 +62,7 @@ export function VeoVideoGenerator({
   const { saveGeneratedMedia, createHistoryEntry, markGenerationFailed, isEnabled: canSaveToDb, workspaceId } = useMediaLibrary();
 
   // Global video generation context for persistent polling across pages
-  const { startVeoPolling } = useVideoGeneration();
+  const { startVeoPolling, getJobStatus, activeJobs } = useVideoGeneration();
 
   // State
   const [mode, setMode] = useState<VeoMode>('text');
@@ -213,6 +213,77 @@ export function VeoVideoGenerator({
       }
     };
   }, []);
+
+  // Subscribe to global job status updates from VideoGenerationContext
+  useEffect(() => {
+    const video = currentVideoRef.current;
+    if (!video?.operationId) return;
+
+    const job = getJobStatus(video.operationId);
+    if (!job) return;
+
+    if (job.status === 'completed' && job.url) {
+      // Update local state
+      setCurrentVideo(prev => prev ? {
+        ...prev,
+        status: 'completed',
+        url: job.url,
+        progress: 100,
+        veoVideoId: job.veoVideoId,
+      } : null);
+
+      // Notify parent component
+      onVideoUpdate(video.operationId, {
+        status: 'completed',
+        url: job.url,
+        progress: 100,
+        veoVideoId: job.veoVideoId,
+      });
+
+      // Save to database
+      if (canSaveToDb && job.url) {
+        const genTime = generationStartTime > 0 ? Date.now() - generationStartTime : undefined;
+        const totalDuration = video.config.total_duration || video.config.duration || 8;
+        const extensionCount = video.extensionCount || 0;
+
+        saveGeneratedMedia({
+          type: 'video',
+          source: `veo-${mode}` as any,
+          url: job.url,
+          prompt: video.prompt,
+          model: video.config.model,
+          config: {
+            ...video.config,
+            veo_video_id: job.veoVideoId,
+            veo_operation_id: video.operationId,
+            extension_count: extensionCount,
+            is_extendable: extensionCount < 20,
+            total_duration: totalDuration,
+            parent_video_id: video.config.parent_video_id,
+          },
+        }, currentHistoryId, genTime).catch(err => {
+          console.error('Failed to save Veo video to database:', err);
+        });
+      }
+
+      setIsGenerating(false);
+      setCurrentHistoryId(null);
+    } else if (job.status === 'failed') {
+      setError(job.error || 'Video generation failed');
+      setIsGenerating(false);
+
+      if (currentHistoryId) {
+        markGenerationFailed(currentHistoryId, job.error || 'Generation failed');
+      }
+      setCurrentHistoryId(null);
+
+      onVideoUpdate(video.operationId, { status: 'failed', progress: 0 });
+    } else if (job.status === 'processing' || job.status === 'in_progress') {
+      // Update progress
+      setCurrentVideo(prev => prev ? { ...prev, status: 'processing', progress: job.progress } : null);
+      onVideoUpdate(video.operationId, { status: 'processing', progress: job.progress });
+    }
+  }, [activeJobs, getJobStatus, onVideoUpdate, canSaveToDb, currentHistoryId, generationStartTime, markGenerationFailed, mode, saveGeneratedMedia]);
 
   // Handle generation started from child components
   const handleGenerationStarted = useCallback(async (
