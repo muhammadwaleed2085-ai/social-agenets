@@ -50,7 +50,7 @@ export class ThreadService {
         .eq('lang_thread_id', langThreadId)
         .eq('workspace_id', workspaceId)
         .is('deleted_at', null)
-        .single()
+        .maybeSingle()
 
       // If thread exists, return it (prevents duplicate key error)
       if (existingThread) {
@@ -83,7 +83,7 @@ export class ThreadService {
             .select('*')
             .eq('lang_thread_id', langThreadId)
             .eq('workspace_id', workspaceId)
-            .single()
+            .maybeSingle()
 
           if (raceThread) {
             return raceThread as ContentThread

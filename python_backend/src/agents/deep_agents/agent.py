@@ -264,9 +264,9 @@ def create_content_writer():
     
     # Reasoning configuration for models that support extended thinking (o1, o3, etc.)
     # 'low', 'medium', or 'high' effort levels control how much reasoning the model does
+    # Note: 'summary' parameter removed as it requires OpenAI organization verification
     reasoning = {
         "effort": "medium",  # Balance between speed and depth
-        "summary": "auto",   # 'detailed', 'auto', or None
     }
     
     llm = ChatOpenAI(
