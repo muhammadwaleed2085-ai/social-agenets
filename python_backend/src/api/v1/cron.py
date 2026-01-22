@@ -827,9 +827,9 @@ async def _build_comment_agent_credentials(
                     if raw_creds.startswith("{"):
                         creds = json.loads(raw_creds)
                     else:
-                        # Encrypted - cannot process without MetaCredentialsService
-                        logger.debug(f"Encrypted credentials for {platform}, trying MetaCredentialsService")
-                        continue
+                        # Encrypted string - decrypt via MetaCredentialsService
+                        logger.debug(f"Encrypted credentials for {platform}, attempting decryption")
+                        creds = MetaCredentialsService._decrypt_credentials(raw_creds, workspace_id) or {}
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse credentials for {platform}")
                     continue
