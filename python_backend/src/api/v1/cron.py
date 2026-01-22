@@ -808,9 +808,9 @@ async def _build_comment_agent_credentials(
         
         if not result.data:
             logger.warning(f"No connected social accounts for workspace {workspace_id}")
-            return None
+        rows = result.data or []
         
-        for row in result.data:
+        for row in rows:
             platform = row.get("platform")
             raw_creds = row.get("credentials_encrypted")
             
@@ -869,15 +869,40 @@ async def _build_comment_agent_credentials(
         # Fallback to MetaCredentialsService if no direct credentials found
         if not credentials.get("accessToken") and any(p in ["instagram", "facebook"] for p in platforms):
             try:
+                await MetaCredentialsService.auto_refresh_if_needed(workspace_id)
                 meta = await MetaCredentialsService.get_meta_credentials(workspace_id)
                 if meta and meta.get("access_token"):
                     credentials["accessToken"] = meta.get("access_token")
-                    credentials["instagramUserId"] = meta.get("ig_user_id")
                     credentials["facebookPageId"] = meta.get("page_id")
-                    credentials["pageAccessToken"] = meta.get("page_access_token")
+                    credentials["pageAccessToken"] = meta.get("page_access_token") or meta.get("access_token")
                     logger.info(f"Got Meta credentials via MetaCredentialsService for workspace {workspace_id}")
+
+                ig = await MetaCredentialsService.get_instagram_credentials(workspace_id)
+                if ig and ig.get("ig_user_id"):
+                    credentials["instagramUserId"] = ig.get("ig_user_id")
+                    if not credentials.get("accessToken") and ig.get("access_token"):
+                        credentials["accessToken"] = ig.get("access_token")
+                    if not credentials.get("facebookPageId") and ig.get("page_id"):
+                        credentials["facebookPageId"] = ig.get("page_id")
+                    if not credentials.get("pageAccessToken") and ig.get("page_access_token"):
+                        credentials["pageAccessToken"] = ig.get("page_access_token")
             except Exception as e:
                 logger.warning(f"MetaCredentialsService fallback failed: {e}")
+
+        if "youtube" in platforms and not credentials.get("youtubeAccessToken"):
+            try:
+                refresh_result = await token_refresh_service.get_valid_credentials(
+                    platform="youtube",
+                    workspace_id=workspace_id,
+                )
+                yt_credentials = refresh_result.credentials if refresh_result.success else None
+                if yt_credentials:
+                    credentials["youtubeAccessToken"] = yt_credentials.get("accessToken") or yt_credentials.get("access_token")
+                    channel_id = yt_credentials.get("channelId") or yt_credentials.get("channel_id")
+                    if channel_id:
+                        credentials["youtubeChannelId"] = channel_id
+            except Exception as e:
+                logger.warning(f"YouTube credentials fallback failed: {e}")
         
         if not credentials:
             logger.warning(f"No valid credentials found for workspace {workspace_id}")
