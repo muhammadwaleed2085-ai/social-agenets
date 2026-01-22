@@ -2,6 +2,7 @@
 Comment Agent Service
 Main autonomous agent for processing and responding to comments
 """
+import asyncio
 import logging
 import time
 from typing import Optional, List
@@ -80,6 +81,9 @@ async def process_comments(request: ProcessCommentsRequest) -> ProcessCommentsRe
         has_meta_platforms = any(p in ["instagram", "facebook"] for p in platforms)
         has_youtube = "youtube" in platforms
         
+        # Track if we have ANY valid credentials for fetching comments
+        has_any_fetch_credentials = False
+        
         if has_meta_platforms and credentials and credentials.accessToken:
             # Create Meta API tools with real credentials
             logger.info("Creating Meta API tools with access token")
@@ -93,6 +97,7 @@ async def process_comments(request: ProcessCommentsRequest) -> ProcessCommentsRe
             )
             all_tools.extend(meta_fetch_tools)
             all_tools.extend(meta_reply_tools)
+            has_any_fetch_credentials = True
         elif has_meta_platforms:
             logger.warning("Meta platforms requested but no access token provided")
         
@@ -108,14 +113,41 @@ async def process_comments(request: ProcessCommentsRequest) -> ProcessCommentsRe
             )
             all_tools.extend(youtube_fetch_tools)
             all_tools.extend(youtube_reply_tools)
+            has_any_fetch_credentials = True
         elif has_youtube:
             logger.warning("YouTube requested but no access token provided")
+        
+        # EARLY EXIT: If no platform has valid credentials, skip this workspace
+        if not has_any_fetch_credentials:
+            execution_time = int((time.time() - start_time) * 1000)
+            logger.warning(f"No valid credentials for any platform - skipping workspace {workspace_id}")
+            
+            # Update log entry with skip reason
+            if log_id and is_supabase_configured():
+                try:
+                    await db_update("comment_agent_logs", {
+                        "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "errors": 0,
+                        "error_message": "Skipped - no valid platform credentials",
+                    }, {"id": log_id})
+                except Exception as e:
+                    logger.warning(f"Could not update log entry: {e}")
+            
+            return ProcessCommentsResponse(
+                success=True,  # Not an error, just nothing to process
+                commentsFetched=0,
+                autoReplied=0,
+                escalated=0,
+                errors=0,
+                executionTime=execution_time,
+                errorMessage="No valid platform credentials - connect social accounts first"
+            )
         
         # Initialize LLM - OpenAI
         model = ChatOpenAI(
             model="gpt-4o-mini",
             api_key=settings.OPENAI_API_KEY,
-            temperature=0.3,
+            temperature=0.7,
         )
         
         # Create agent with tools
@@ -141,10 +173,39 @@ async def process_comments(request: ProcessCommentsRequest) -> ProcessCommentsRe
         
         logger.info(f"Running comment agent with instruction: {instruction[:100]}...")
         
-        # Run the agent
-        result = await agent.ainvoke({
-            "messages": [{"role": "user", "content": instruction}]
-        })
+        # Run the agent with timeout to prevent infinite loops
+        AGENT_TIMEOUT_SECONDS = 80  # Max time for agent to complete
+        try:
+            result = await asyncio.wait_for(
+                agent.ainvoke({
+                    "messages": [{"role": "user", "content": instruction}]
+                }),
+                timeout=AGENT_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            execution_time = int((time.time() - start_time) * 1000)
+            logger.error(f"Comment agent timed out after {AGENT_TIMEOUT_SECONDS}s for workspace {workspace_id}")
+            
+            # Update log entry with timeout error
+            if log_id and is_supabase_configured():
+                try:
+                    await db_update("comment_agent_logs", {
+                        "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "errors": 1,
+                        "error_message": f"Agent timed out after {AGENT_TIMEOUT_SECONDS}s",
+                    }, {"id": log_id})
+                except Exception as e:
+                    logger.warning(f"Could not update log entry: {e}")
+            
+            return ProcessCommentsResponse(
+                success=False,
+                commentsFetched=0,
+                autoReplied=0,
+                escalated=0,
+                errors=1,
+                executionTime=execution_time,
+                errorMessage=f"Agent timed out after {AGENT_TIMEOUT_SECONDS} seconds"
+            )
         
         # Parse response - extract counts from tool results if possible
         messages = result.get("messages", [])

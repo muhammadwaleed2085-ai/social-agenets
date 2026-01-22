@@ -18,6 +18,7 @@ Setup with cron-job.org:
 3. Enable failure notifications
 """
 
+import json
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
@@ -704,30 +705,103 @@ async def _build_comment_agent_credentials(
     workspace_id: str,
     platforms: List[str],
 ) -> Optional[CommentAgentCredentials]:
+    """
+    Build credentials for comment agent by directly fetching from social_accounts.
+    Matches the Next.js cron approach for consistency.
+    """
     credentials: Dict[str, Any] = {}
-
-    if any(p in ["instagram", "facebook"] for p in platforms):
-        meta = await MetaCredentialsService.get_meta_credentials(workspace_id)
-        if meta and meta.get("access_token"):
-            credentials["accessToken"] = meta.get("access_token")
-            credentials["instagramUserId"] = meta.get("ig_user_id")
-            credentials["facebookPageId"] = meta.get("page_id")
-            credentials["pageAccessToken"] = meta.get("page_access_token")
-
-    if "youtube" in platforms:
-        yt = supabase.table("social_accounts").select(
-            "account_id,credentials_encrypted"
-        ).eq("workspace_id", workspace_id).eq("platform", "youtube").eq("is_connected", True).limit(1).execute()
-        if yt.data:
-            row = yt.data[0]
-            raw = row.get("credentials_encrypted") or {}
-            if isinstance(raw, dict):
-                credentials["youtubeAccessToken"] = raw.get("accessToken")
-            credentials["youtubeChannelId"] = row.get("account_id")
-
-    if not credentials:
+    
+    try:
+        # Fetch all connected social accounts for this workspace
+        result = supabase.table("social_accounts").select(
+            "platform, credentials_encrypted, account_id, page_id"
+        ).eq("workspace_id", workspace_id).eq("is_connected", True).in_(
+            "platform", ["instagram", "facebook", "youtube", "meta_ads"]
+        ).execute()
+        
+        if not result.data:
+            logger.warning(f"No connected social accounts for workspace {workspace_id}")
+            return None
+        
+        for row in result.data:
+            platform = row.get("platform")
+            raw_creds = row.get("credentials_encrypted")
+            
+            # Parse credentials (could be dict/JSONB or JSON string)
+            if raw_creds is None:
+                continue
+            
+            creds: Dict[str, Any] = {}
+            if isinstance(raw_creds, dict):
+                creds = raw_creds
+            elif isinstance(raw_creds, str):
+                try:
+                    # Try parsing as JSON first
+                    if raw_creds.startswith("{"):
+                        creds = json.loads(raw_creds)
+                    else:
+                        # Encrypted - cannot process without MetaCredentialsService
+                        logger.debug(f"Encrypted credentials for {platform}, trying MetaCredentialsService")
+                        continue
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse credentials for {platform}")
+                    continue
+            
+            # Extract Meta credentials (Instagram/Facebook)
+            if platform in ["instagram", "facebook", "meta_ads"]:
+                # Support both camelCase and snake_case
+                access_token = creds.get("accessToken") or creds.get("access_token") or ""
+                if access_token:
+                    credentials["accessToken"] = access_token
+                
+                # Instagram user ID
+                ig_user_id = creds.get("igUserId") or creds.get("ig_user_id") or creds.get("userId") or creds.get("user_id")
+                if ig_user_id and platform == "instagram":
+                    credentials["instagramUserId"] = ig_user_id
+                
+                # Facebook page ID
+                page_id = creds.get("pageId") or creds.get("page_id") or row.get("page_id")
+                if page_id:
+                    credentials["facebookPageId"] = page_id
+                
+                # Page access token
+                page_token = creds.get("pageAccessToken") or creds.get("page_access_token")
+                if page_token:
+                    credentials["pageAccessToken"] = page_token
+            
+            # Extract YouTube credentials
+            if platform == "youtube":
+                yt_token = creds.get("accessToken") or creds.get("access_token")
+                if yt_token:
+                    credentials["youtubeAccessToken"] = yt_token
+                
+                channel_id = creds.get("channelId") or creds.get("channel_id") or row.get("account_id")
+                if channel_id:
+                    credentials["youtubeChannelId"] = channel_id
+        
+        # Fallback to MetaCredentialsService if no direct credentials found
+        if not credentials.get("accessToken") and any(p in ["instagram", "facebook"] for p in platforms):
+            try:
+                meta = await MetaCredentialsService.get_meta_credentials(workspace_id)
+                if meta and meta.get("access_token"):
+                    credentials["accessToken"] = meta.get("access_token")
+                    credentials["instagramUserId"] = meta.get("ig_user_id")
+                    credentials["facebookPageId"] = meta.get("page_id")
+                    credentials["pageAccessToken"] = meta.get("page_access_token")
+                    logger.info(f"Got Meta credentials via MetaCredentialsService for workspace {workspace_id}")
+            except Exception as e:
+                logger.warning(f"MetaCredentialsService fallback failed: {e}")
+        
+        if not credentials:
+            logger.warning(f"No valid credentials found for workspace {workspace_id}")
+            return None
+        
+        logger.info(f"Built credentials for workspace {workspace_id}: accessToken={'present' if credentials.get('accessToken') else 'missing'}, youtubeAccessToken={'present' if credentials.get('youtubeAccessToken') else 'missing'}")
+        return CommentAgentCredentials(**credentials)
+        
+    except Exception as e:
+        logger.error(f"Error building credentials for workspace {workspace_id}: {e}")
         return None
-    return CommentAgentCredentials(**credentials)
 
 
 @router.get("/process-comments", response_model=CommentsCronResponse)
