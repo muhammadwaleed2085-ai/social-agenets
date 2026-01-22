@@ -968,7 +968,14 @@ async def publish_scheduled_posts(
         utc_now = datetime.now(timezone.utc)
         now_string = utc_now.strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        # Debug: Check all scheduled posts to see why they might be skipped
+        # Debug: Check ALL posts to see what their statuses actually are
+        all_posts_query = supabase.table("posts").select("id, status, scheduled_at, workspace_id").limit(10).execute()
+        all_posts = all_posts_query.data or []
+        logger.info(f"DEBUG: Sample of posts in DB (Total sample: {len(all_posts)}):")
+        for p in all_posts:
+            logger.info(f"DEBUG: Post {p.get('id')} - Status: '{p.get('status')}', Scheduled: {p.get('scheduled_at')}, Workspace: {p.get('workspace_id')}")
+
+        # Original debug for scheduled only
         all_scheduled_query = supabase.table("posts").select("id, status, scheduled_at, publish_retry_count").eq(
             "status", "scheduled"
         ).execute()
