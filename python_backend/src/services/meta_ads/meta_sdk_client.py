@@ -42,6 +42,9 @@ from facebook_business.adobjects.business import Business
 from facebook_business.exceptions import FacebookRequestError
 
 from ...config import settings
+from ..platforms.pages_service import PagesService
+from ..platforms.ig_service import InstagramService
+from ..platforms.comments_service import CommentsService
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +223,46 @@ class MetaSDKClient:
                 message="Meta SDK not initialized. Provide access token first.",
                 code=0
             )
+
+    def _ensure_access_token(self) -> None:
+        """Ensure access token exists for non-SDK service calls"""
+        if not self._access_token:
+            raise MetaSDKError(
+                message="Access token is required for this operation.",
+                code=0
+            )
+
+    async def get_page_feed(self, page_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get Facebook Page feed posts via PagesService."""
+        self._ensure_access_token()
+        service = PagesService(self._access_token)
+        result = await service.get_page_feed(page_id, limit)
+        if not result.get("success"):
+            raise MetaSDKError(message=result.get("error", "Failed to fetch page feed"))
+        return result.get("posts", [])
+
+    async def get_instagram_media(self, ig_user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get Instagram media via InstagramService."""
+        self._ensure_access_token()
+        service = InstagramService(self._access_token)
+        result = await service.get_instagram_media(ig_user_id, limit)
+        if not result.get("success"):
+            raise MetaSDKError(message=result.get("error", "Failed to fetch Instagram media"))
+        return result.get("media", [])
+
+    async def get_object_comments(
+        self,
+        object_id: str,
+        limit: int = 50,
+        fields: str = "id,text,from,timestamp,like_count"
+    ) -> List[Dict[str, Any]]:
+        """Get comments for an object via CommentsService."""
+        self._ensure_access_token()
+        service = CommentsService(self._access_token)
+        result = await service.get_object_comments(object_id, limit=limit, fields=fields)
+        if not result.get("success"):
+            raise MetaSDKError(message=result.get("error", "Failed to fetch comments"))
+        return result.get("comments", [])
     
     # =========================================================================
     # BASIC ACCOUNT OPERATIONS (kept for backward compatibility)

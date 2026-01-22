@@ -411,7 +411,7 @@ async def publish_to_platform(
         elif platform == "facebook":
             from ...services.social_service import social_service
             
-            access_token = credentials.get("accessToken", "")
+            access_token = credentials.get("pageAccessToken") or credentials.get("accessToken", "")
             page_id = credentials.get("pageId", "")
             
             try:
