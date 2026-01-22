@@ -720,6 +720,9 @@ export interface AdSetFormData {
   is_adset_budget_sharing_enabled?: boolean;  // Share up to 20% budget between ad sets
   placement_soft_opt_out?: boolean;           // Allow 5% spend on excluded placements
   destination_type?: DestinationType;         // Where ads send people
+  page_id?: string;                            // Facebook Page ID (optional)
+  daily_min_spend_target?: number;            // Optional minimum daily spend
+  daily_spend_cap?: number;                    // Optional maximum daily spend
 }
 
 export interface AdFormData {
