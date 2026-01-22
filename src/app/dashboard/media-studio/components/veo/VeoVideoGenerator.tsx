@@ -2,16 +2,14 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Video,
   Sparkles,
   Image as ImageIcon,
   RefreshCw,
-  Film,
-  Images,
   Layers,
+  Images,
   Volume2,
 } from 'lucide-react';
 import { VeoTextToVideo } from './VeoTextToVideo';
@@ -61,8 +59,8 @@ export function VeoVideoGenerator({
 }: VeoVideoGeneratorProps) {
   const { saveGeneratedMedia, createHistoryEntry, markGenerationFailed, isEnabled: canSaveToDb, workspaceId } = useMediaLibrary();
 
-  // Global video generation context for persistent polling across pages
-  const { startVeoPolling, getJobStatus, activeJobs } = useVideoGeneration();
+  // Global video generation context - SINGLE source of truth for polling
+  const { startVeoPolling, getJobStatus, activeJobs, completedJobs } = useVideoGeneration();
 
   // State
   const [mode, setMode] = useState<VeoMode>('text');
@@ -72,13 +70,12 @@ export function VeoVideoGenerator({
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [generationStartTime, setGenerationStartTime] = useState<number>(0);
 
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Use ref to track currentVideo for callbacks (avoids stale closure)
+  // Refs for tracking state in callbacks
   const currentVideoRef = useRef<GeneratedVeoVideo | null>(null);
+  const savedOperationsRef = useRef<Set<string>>(new Set());
 
   // Keep ref in sync with state
-  React.useEffect(() => {
+  useEffect(() => {
     currentVideoRef.current = currentVideo;
   }, [currentVideo]);
 
@@ -89,132 +86,10 @@ export function VeoVideoGenerator({
       (v.extensionCount === undefined || v.extensionCount < 20)
   );
 
-  // Poll video status
-  const pollVideoStatus = useCallback(async (operationId: string, operationName: string) => {
-    try {
-      const response = await fetch('/api/ai/media/veo/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operationId, operationName }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        if (data.done) {
-          if (data.status === 'completed' && data.video) {
-            // Download and save to Supabase
-            const downloadResponse = await fetch('/api/ai/media/veo/download', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                veoVideoId: data.video.veoVideoId,
-                operationId,
-                uploadToSupabase: true,
-              }),
-            });
-            const downloadData = await downloadResponse.json();
-            const videoUrl = downloadData.url || data.video.url;
-
-            onVideoUpdate(operationId, {
-              status: 'completed',
-              url: videoUrl,
-              progress: 100,
-              veoVideoId: data.video.veoVideoId,
-            });
-
-            setCurrentVideo(prev => prev ? {
-              ...prev,
-              status: 'completed',
-              url: videoUrl,
-              progress: 100,
-              veoVideoId: data.video.veoVideoId,
-            } : null);
-
-            // Save to database - use ref to get current value (avoids stale closure)
-            const videoToSave = currentVideoRef.current;
-            if (canSaveToDb && videoUrl && videoToSave) {
-              const genTime = generationStartTime > 0 ? Date.now() - generationStartTime : undefined;
-
-              // Calculate total duration - for extensions, use total_duration from config
-              const totalDuration = videoToSave.config.total_duration || videoToSave.config.duration || 8;
-              // For extensions, extensionCount is already the new count
-              const extensionCount = videoToSave.extensionCount || 0;
-              // Can extend if under 20 extensions
-              const isExtendable = extensionCount < 20;
-
-              try {
-                console.log('Saving Veo video to database...', { url: videoUrl.substring(0, 50) + '...' });
-                const result = await saveGeneratedMedia({
-                  type: 'video',
-                  source: `veo-${mode}` as any,
-                  url: videoUrl,
-                  prompt: videoToSave.prompt,
-                  model: videoToSave.config.model,
-                  config: {
-                    ...videoToSave.config,
-                    veo_video_id: data.video.veoVideoId,
-                    veo_operation_id: operationId,
-                    extension_count: extensionCount,
-                    is_extendable: isExtendable,
-                    total_duration: totalDuration,
-                    parent_video_id: videoToSave.config.parent_video_id,
-                  },
-                }, currentHistoryId, genTime);
-                console.log('Veo video saved to database:', result);
-              } catch (err) {
-                console.error('Failed to save Veo video to database:', err);
-              }
-            }
-
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
-            setIsGenerating(false);
-            setCurrentHistoryId(null);
-          } else if (data.status === 'failed') {
-            onVideoUpdate(operationId, { status: 'failed', progress: 0 });
-            setError(data.error || 'Video generation failed. Please try again.');
-
-            if (currentHistoryId) {
-              await markGenerationFailed(currentHistoryId, data.error || 'Video generation failed');
-            }
-
-            if (pollIntervalRef.current) {
-              clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-            }
-            setIsGenerating(false);
-            setCurrentHistoryId(null);
-          }
-        } else {
-          // Still processing
-          onVideoUpdate(operationId, {
-            status: 'processing',
-            progress: data.progress,
-          });
-          setCurrentVideo(prev => prev ? {
-            ...prev,
-            status: 'processing',
-            progress: data.progress,
-          } : null);
-        }
-      }
-    } catch (err) {
-    }
-  }, [onVideoUpdate, canSaveToDb, currentHistoryId, generationStartTime, markGenerationFailed, mode, saveGeneratedMedia]);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Subscribe to global job status updates from VideoGenerationContext
+  // ============================================================================
+  // Subscribe to VideoGenerationContext job updates
+  // This is the ONLY place where we handle video completion
+  // ============================================================================
   useEffect(() => {
     const video = currentVideoRef.current;
     if (!video?.operationId) return;
@@ -222,7 +97,14 @@ export function VeoVideoGenerator({
     const job = getJobStatus(video.operationId);
     if (!job) return;
 
+    // Handle completed job
     if (job.status === 'completed' && job.url) {
+      // Prevent duplicate saves using ref
+      if (savedOperationsRef.current.has(video.operationId)) {
+        return;
+      }
+      savedOperationsRef.current.add(video.operationId);
+
       // Update local state
       setCurrentVideo(prev => prev ? {
         ...prev,
@@ -240,7 +122,7 @@ export function VeoVideoGenerator({
         veoVideoId: job.veoVideoId,
       });
 
-      // Save to database
+      // Save to database (single save per operation)
       if (canSaveToDb && job.url) {
         const genTime = generationStartTime > 0 ? Date.now() - generationStartTime : undefined;
         const totalDuration = video.config.total_duration || video.config.duration || 8;
@@ -261,14 +143,18 @@ export function VeoVideoGenerator({
             total_duration: totalDuration,
             parent_video_id: video.config.parent_video_id,
           },
-        }, currentHistoryId, genTime).catch(err => {
-          console.error('Failed to save Veo video to database:', err);
+        }, currentHistoryId, genTime).then(() => {
+          console.log('[VeoVideoGenerator] Saved to database successfully');
+        }).catch(err => {
+          console.error('[VeoVideoGenerator] Failed to save to database:', err);
         });
       }
 
       setIsGenerating(false);
       setCurrentHistoryId(null);
-    } else if (job.status === 'failed') {
+    }
+    // Handle failed job
+    else if (job.status === 'failed') {
       setError(job.error || 'Video generation failed');
       setIsGenerating(false);
 
@@ -278,14 +164,21 @@ export function VeoVideoGenerator({
       setCurrentHistoryId(null);
 
       onVideoUpdate(video.operationId, { status: 'failed', progress: 0 });
-    } else if (job.status === 'processing' || job.status === 'in_progress') {
-      // Update progress
-      setCurrentVideo(prev => prev ? { ...prev, status: 'processing', progress: job.progress } : null);
+    }
+    // Handle processing job - update progress
+    else if (job.status === 'processing' || job.status === 'in_progress' || job.status === 'pending') {
+      setCurrentVideo(prev => prev ? {
+        ...prev,
+        status: 'processing',
+        progress: job.progress
+      } : null);
       onVideoUpdate(video.operationId, { status: 'processing', progress: job.progress });
     }
-  }, [activeJobs, getJobStatus, onVideoUpdate, canSaveToDb, currentHistoryId, generationStartTime, markGenerationFailed, mode, saveGeneratedMedia]);
+  }, [activeJobs, completedJobs, getJobStatus, onVideoUpdate, canSaveToDb, currentHistoryId, generationStartTime, markGenerationFailed, mode, saveGeneratedMedia]);
 
+  // ============================================================================
   // Handle generation started from child components
+  // ============================================================================
   const handleGenerationStarted = useCallback(async (
     video: GeneratedVeoVideo,
     historyAction: string
@@ -295,6 +188,11 @@ export function VeoVideoGenerator({
     setGenerationStartTime(Date.now());
     setCurrentVideo(video);
     onVideoStarted(video);
+
+    // Clear saved state for this operation (allows retry)
+    if (video.operationId) {
+      savedOperationsRef.current.delete(video.operationId);
+    }
 
     // Create history entry
     const historyId = canSaveToDb ? await createHistoryEntry({
@@ -306,15 +204,16 @@ export function VeoVideoGenerator({
     }) : null;
     setCurrentHistoryId(historyId);
 
-    // Start global polling (persists across page navigation)
-    // NOTE: Using ONLY global polling per Google Veo docs recommendation (single polling loop)
-    // The global VideoGenerationContext handles status checks and downloads
+    // Start global polling via VideoGenerationContext
+    // This is the SINGLE polling mechanism per Google Veo 3.1 docs
     if (video.operationId && video.operationName) {
       startVeoPolling(video.operationId, video.operationName, video.prompt, video.config.model);
     }
   }, [canSaveToDb, createHistoryEntry, onVideoStarted, startVeoPolling]);
 
+  // ============================================================================
   // Handle generation error from child components
+  // ============================================================================
   const handleGenerationError = useCallback(async (errorMsg: string) => {
     setError(errorMsg);
     setIsGenerating(false);
@@ -325,18 +224,25 @@ export function VeoVideoGenerator({
     setCurrentHistoryId(null);
   }, [currentHistoryId, markGenerationFailed]);
 
+  // ============================================================================
   // Handle video selection for extension
-  const handleSelectVideoForExtend = useCallback((video: GeneratedVeoVideo) => {
+  // ============================================================================
+  const handleSelectVideoForExtend = useCallback(() => {
     setMode('extend');
   }, []);
 
+  // ============================================================================
   // Handle new video
+  // ============================================================================
   const handleNewVideo = useCallback(() => {
     setCurrentVideo(null);
     setIsGenerating(false);
     setError(null);
   }, []);
 
+  // ============================================================================
+  // Render
+  // ============================================================================
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Configuration Panel */}
@@ -449,4 +355,3 @@ export function VeoVideoGenerator({
 }
 
 export default VeoVideoGenerator;
-

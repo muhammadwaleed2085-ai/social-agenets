@@ -2,7 +2,10 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 
+// ============================================================================
 // Types
+// ============================================================================
+
 type VideoProvider = 'sora' | 'veo';
 
 interface VideoJob {
@@ -32,7 +35,10 @@ interface VideoGenerationContextType {
 
 const VideoGenerationContext = createContext<VideoGenerationContextType | undefined>(undefined);
 
-// Hook to use the context
+// ============================================================================
+// Custom Hook
+// ============================================================================
+
 export function useVideoGeneration() {
     const context = useContext(VideoGenerationContext);
     if (!context) {
@@ -41,7 +47,19 @@ export function useVideoGeneration() {
     return context;
 }
 
-// Provider component
+// ============================================================================
+// Constants (per official Google Veo 3.1 docs)
+// ============================================================================
+
+const MAX_POLLS_SORA = 96;      // 8 minutes at 5s intervals
+const MAX_POLLS_VEO = 48;       // 8 minutes at 10s intervals (docs recommend 10s)
+const SORA_POLL_INTERVAL = 5000;
+const VEO_POLL_INTERVAL = 10000; // Google docs: "checks the job status every 10 seconds"
+
+// ============================================================================
+// Provider Component
+// ============================================================================
+
 interface VideoGenerationProviderProps {
     children: ReactNode;
 }
@@ -51,27 +69,54 @@ export function VideoGenerationProvider({ children }: VideoGenerationProviderPro
     const pollIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
     const pollCountsRef = useRef<Map<string, number>>(new Map());
 
-    const MAX_POLLS_SORA = 96; // 8 minutes at 5s intervals
-    const MAX_POLLS_VEO = 48;  // 8 minutes at 10s intervals  
-    const SORA_POLL_INTERVAL = 5000;
-    const VEO_POLL_INTERVAL = 10000;
+    // CRITICAL: Deduplication guards to prevent duplicate downloads
+    // This prevents the issue where multiple poll cycles trigger multiple downloads
+    const downloadingRef = useRef<Set<string>>(new Set());
+    const completedDownloadsRef = useRef<Set<string>>(new Set());
 
-    // Poll a Sora video job
+    // ========================================================================
+    // Helper: Stop polling for a job
+    // ========================================================================
+    const stopPolling = useCallback((jobId: string) => {
+        const interval = pollIntervalsRef.current.get(jobId);
+        if (interval) {
+            clearInterval(interval);
+            pollIntervalsRef.current.delete(jobId);
+        }
+        pollCountsRef.current.delete(jobId);
+    }, []);
+
+    // ========================================================================
+    // Helper: Update job state
+    // ========================================================================
+    const updateJob = useCallback((jobId: string, updates: Partial<VideoJob>) => {
+        setJobs(prev => {
+            const newMap = new Map(prev);
+            const job = newMap.get(jobId);
+            if (job) {
+                newMap.set(jobId, { ...job, ...updates });
+            }
+            return newMap;
+        });
+    }, []);
+
+    // ========================================================================
+    // Helper: Mark job as failed with timeout
+    // ========================================================================
+    const markJobTimedOut = useCallback((jobId: string) => {
+        updateJob(jobId, { status: 'failed', error: 'Generation timed out after 8 minutes' });
+        stopPolling(jobId);
+    }, [updateJob, stopPolling]);
+
+    // ========================================================================
+    // Poll Sora job status
+    // ========================================================================
     const pollSoraJob = useCallback(async (videoId: string) => {
         const currentCount = pollCountsRef.current.get(videoId) || 0;
         pollCountsRef.current.set(videoId, currentCount + 1);
 
         if (currentCount >= MAX_POLLS_SORA) {
-            setJobs(prev => {
-                const newMap = new Map(prev);
-                const job = newMap.get(videoId);
-                if (job) {
-                    newMap.set(videoId, { ...job, status: 'failed', error: 'Generation timed out' });
-                }
-                return newMap;
-            });
-            const interval = pollIntervalsRef.current.get(videoId);
-            if (interval) { clearInterval(interval); pollIntervalsRef.current.delete(videoId); }
+            markJobTimedOut(videoId);
             return;
         }
 
@@ -89,6 +134,7 @@ export function VideoGenerationProvider({ children }: VideoGenerationProviderPro
                 const video = data.data.video;
 
                 if (video.status === 'completed') {
+                    // Fetch the video data
                     const fetchResponse = await fetch('/api/ai/media/sora/fetch', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -98,57 +144,49 @@ export function VideoGenerationProvider({ children }: VideoGenerationProviderPro
                     if (fetchResponse.ok) {
                         const fetchData = await fetchResponse.json();
                         if (fetchData.success) {
-                            setJobs(prev => {
-                                const newMap = new Map(prev);
-                                const job = newMap.get(videoId);
-                                if (job) {
-                                    newMap.set(videoId, { ...job, status: 'completed', progress: 100, url: fetchData.data?.videoData });
-                                }
-                                return newMap;
+                            updateJob(videoId, {
+                                status: 'completed',
+                                progress: 100,
+                                url: fetchData.data?.videoData,
                             });
                         }
                     }
-                    const interval = pollIntervalsRef.current.get(videoId);
-                    if (interval) { clearInterval(interval); pollIntervalsRef.current.delete(videoId); }
-                    pollCountsRef.current.delete(videoId);
+                    stopPolling(videoId);
                 } else if (video.status === 'failed') {
-                    setJobs(prev => {
-                        const newMap = new Map(prev);
-                        const job = newMap.get(videoId);
-                        if (job) { newMap.set(videoId, { ...job, status: 'failed', progress: 0, error: video.error || 'Generation failed' }); }
-                        return newMap;
+                    updateJob(videoId, {
+                        status: 'failed',
+                        progress: 0,
+                        error: video.error || 'Generation failed',
                     });
-                    const interval = pollIntervalsRef.current.get(videoId);
-                    if (interval) { clearInterval(interval); pollIntervalsRef.current.delete(videoId); }
-                    pollCountsRef.current.delete(videoId);
+                    stopPolling(videoId);
                 } else {
-                    setJobs(prev => {
-                        const newMap = new Map(prev);
-                        const job = newMap.get(videoId);
-                        if (job) { newMap.set(videoId, { ...job, status: video.status, progress: video.progress || 0 }); }
-                        return newMap;
+                    // Still processing
+                    updateJob(videoId, {
+                        status: video.status,
+                        progress: video.progress || 0,
                     });
                 }
             }
         } catch (err) {
-            console.error('Sora poll error:', err);
+            console.error('[VideoGenerationContext] Sora poll error:', err);
         }
-    }, []);
+    }, [markJobTimedOut, updateJob, stopPolling]);
 
-    // Poll a Veo video job
+    // ========================================================================
+    // Poll Veo job status (per official Google Veo 3.1 docs)
+    // ========================================================================
     const pollVeoJob = useCallback(async (operationId: string, operationName: string) => {
         const currentCount = pollCountsRef.current.get(operationId) || 0;
         pollCountsRef.current.set(operationId, currentCount + 1);
 
+        // Check timeout
         if (currentCount >= MAX_POLLS_VEO) {
-            setJobs(prev => {
-                const newMap = new Map(prev);
-                const job = newMap.get(operationId);
-                if (job) { newMap.set(operationId, { ...job, status: 'failed', error: 'Generation timed out' }); }
-                return newMap;
-            });
-            const interval = pollIntervalsRef.current.get(operationId);
-            if (interval) { clearInterval(interval); pollIntervalsRef.current.delete(operationId); }
+            markJobTimedOut(operationId);
+            return;
+        }
+
+        // Skip if already downloading or completed (deduplication guard)
+        if (downloadingRef.current.has(operationId) || completedDownloadsRef.current.has(operationId)) {
             return;
         }
 
@@ -162,54 +200,92 @@ export function VideoGenerationProvider({ children }: VideoGenerationProviderPro
             if (!response.ok) return;
             const data = await response.json();
 
-            if (data.success) {
-                if (data.done) {
-                    if (data.status === 'completed' && data.video) {
-                        // Download video
+            if (!data.success) return;
+
+            if (data.done) {
+                if (data.status === 'completed' && data.video) {
+                    // ============================================================
+                    // CRITICAL: Deduplication check before download
+                    // This is the single point where downloads are triggered
+                    // ============================================================
+                    if (downloadingRef.current.has(operationId) || completedDownloadsRef.current.has(operationId)) {
+                        console.log(`[VideoGenerationContext] Skipping duplicate download for ${operationId}`);
+                        return;
+                    }
+
+                    // Mark as downloading to prevent concurrent downloads
+                    downloadingRef.current.add(operationId);
+
+                    try {
+                        console.log(`[VideoGenerationContext] Starting download for ${operationId}`);
+
                         const downloadResponse = await fetch('/api/ai/media/veo/download', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ veoVideoId: data.video.veoVideoId, operationId, uploadToSupabase: true }),
+                            body: JSON.stringify({
+                                veoVideoId: data.video.veoVideoId,
+                                operationId,
+                                uploadToSupabase: true,
+                            }),
                         });
+
                         const downloadData = await downloadResponse.json();
                         const videoUrl = downloadData.url || data.video.url;
 
-                        setJobs(prev => {
-                            const newMap = new Map(prev);
-                            const job = newMap.get(operationId);
-                            if (job) {
-                                newMap.set(operationId, { ...job, status: 'completed', progress: 100, url: videoUrl, veoVideoId: data.video.veoVideoId });
-                            }
-                            return newMap;
+                        // Mark as completed to prevent future duplicate downloads
+                        completedDownloadsRef.current.add(operationId);
+                        downloadingRef.current.delete(operationId);
+
+                        console.log(`[VideoGenerationContext] Download complete for ${operationId}: ${videoUrl?.substring(0, 60)}...`);
+
+                        // Update job state
+                        updateJob(operationId, {
+                            status: 'completed',
+                            progress: 100,
+                            url: videoUrl,
+                            veoVideoId: data.video.veoVideoId,
                         });
-                    } else if (data.status === 'failed') {
-                        setJobs(prev => {
-                            const newMap = new Map(prev);
-                            const job = newMap.get(operationId);
-                            if (job) { newMap.set(operationId, { ...job, status: 'failed', progress: 0, error: data.error || 'Generation failed' }); }
-                            return newMap;
+
+                        stopPolling(operationId);
+                    } catch (downloadError) {
+                        console.error('[VideoGenerationContext] Download error:', downloadError);
+                        downloadingRef.current.delete(operationId);
+                        updateJob(operationId, {
+                            status: 'failed',
+                            error: 'Failed to download video',
                         });
+                        stopPolling(operationId);
                     }
-                    const interval = pollIntervalsRef.current.get(operationId);
-                    if (interval) { clearInterval(interval); pollIntervalsRef.current.delete(operationId); }
-                    pollCountsRef.current.delete(operationId);
-                } else {
-                    // Still processing
-                    setJobs(prev => {
-                        const newMap = new Map(prev);
-                        const job = newMap.get(operationId);
-                        if (job) { newMap.set(operationId, { ...job, status: 'processing', progress: data.progress || 0 }); }
-                        return newMap;
+                } else if (data.status === 'failed') {
+                    updateJob(operationId, {
+                        status: 'failed',
+                        progress: 0,
+                        error: data.error || 'Generation failed',
                     });
+                    stopPolling(operationId);
                 }
+            } else {
+                // Still processing - update progress
+                updateJob(operationId, {
+                    status: 'processing',
+                    progress: data.progress || 50, // Veo doesn't provide granular progress
+                });
             }
         } catch (err) {
-            console.error('Veo poll error:', err);
+            console.error('[VideoGenerationContext] Veo poll error:', err);
         }
-    }, []);
+    }, [markJobTimedOut, updateJob, stopPolling]);
 
+    // ========================================================================
     // Start Sora polling
+    // ========================================================================
     const startSoraPolling = useCallback((videoId: string, prompt: string, model: string) => {
+        // Prevent duplicate polling for same job
+        if (pollIntervalsRef.current.has(videoId)) {
+            console.log(`[VideoGenerationContext] Already polling Sora job ${videoId}`);
+            return;
+        }
+
         const job: VideoJob = {
             id: videoId,
             prompt,
@@ -223,13 +299,28 @@ export function VideoGenerationProvider({ children }: VideoGenerationProviderPro
         setJobs(prev => new Map(prev).set(videoId, job));
         pollCountsRef.current.set(videoId, 0);
 
+        // Start polling interval
         const interval = setInterval(() => pollSoraJob(videoId), SORA_POLL_INTERVAL);
         pollIntervalsRef.current.set(videoId, interval);
+
+        // Poll immediately
         pollSoraJob(videoId);
     }, [pollSoraJob]);
 
-    // Start Veo polling
+    // ========================================================================
+    // Start Veo polling (per official Google Veo 3.1 docs)
+    // ========================================================================
     const startVeoPolling = useCallback((operationId: string, operationName: string, prompt: string, model: string) => {
+        // Prevent duplicate polling for same job
+        if (pollIntervalsRef.current.has(operationId)) {
+            console.log(`[VideoGenerationContext] Already polling Veo job ${operationId}`);
+            return;
+        }
+
+        // Clear any previous completion state for this operation (for retries)
+        completedDownloadsRef.current.delete(operationId);
+        downloadingRef.current.delete(operationId);
+
         const job: VideoJob = {
             id: operationId,
             prompt,
@@ -244,30 +335,59 @@ export function VideoGenerationProvider({ children }: VideoGenerationProviderPro
         setJobs(prev => new Map(prev).set(operationId, job));
         pollCountsRef.current.set(operationId, 0);
 
+        // Start polling interval (Google docs: every 10 seconds)
         const interval = setInterval(() => pollVeoJob(operationId, operationName), VEO_POLL_INTERVAL);
         pollIntervalsRef.current.set(operationId, interval);
+
+        // Poll immediately for faster response
         pollVeoJob(operationId, operationName);
     }, [pollVeoJob]);
 
+    // ========================================================================
+    // Get job status
+    // ========================================================================
     const getJobStatus = useCallback((jobId: string) => jobs.get(jobId), [jobs]);
 
+    // ========================================================================
+    // Clear completed job
+    // ========================================================================
     const clearCompletedJob = useCallback((jobId: string) => {
-        setJobs(prev => { const newMap = new Map(prev); newMap.delete(jobId); return newMap; });
+        setJobs(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(jobId);
+            return newMap;
+        });
+        // Also clear from completion tracking
+        completedDownloadsRef.current.delete(jobId);
     }, []);
 
+    // ========================================================================
+    // Cleanup on unmount
+    // ========================================================================
     useEffect(() => {
         return () => {
             pollIntervalsRef.current.forEach(interval => clearInterval(interval));
             pollIntervalsRef.current.clear();
+            pollCountsRef.current.clear();
+            downloadingRef.current.clear();
+            completedDownloadsRef.current.clear();
         };
     }, []);
 
+    // ========================================================================
+    // Derived state
+    // ========================================================================
     const activeJobs = Array.from(jobs.values()).filter(j =>
         j.status === 'queued' || j.status === 'in_progress' || j.status === 'processing' || j.status === 'pending'
     );
-    const completedJobs = Array.from(jobs.values()).filter(j => j.status === 'completed' || j.status === 'failed');
+    const completedJobs = Array.from(jobs.values()).filter(j =>
+        j.status === 'completed' || j.status === 'failed'
+    );
     const isAnyJobProcessing = activeJobs.length > 0;
 
+    // ========================================================================
+    // Provider
+    // ========================================================================
     return (
         <VideoGenerationContext.Provider value={{
             activeJobs,

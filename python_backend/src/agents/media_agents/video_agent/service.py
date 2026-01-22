@@ -554,99 +554,110 @@ async def get_video_status(request: VideoStatusRequest) -> VideoStatusResponse:
 
 
 # ============================================================================
-# Video Download
+# Video Download (per official Google Veo 3.1 docs)
 # ============================================================================
 
 async def download_video(request: VideoDownloadRequest) -> VideoDownloadResponse:
     """
     Download completed video and upload to Cloudinary for permanent storage.
     
+    This function implements atomic deduplication to prevent multiple Cloudinary
+    uploads for the same video. Only the first request to arrive will perform
+    the download; subsequent requests will wait and return the cached URL.
+    
     The veoVideoId can be either:
     - A full download URL (e.g., https://generativelanguage.googleapis.com/v1beta/files/xxx:download?alt=media)
     - A video name/ID for SDK download (e.g., files/xxx)
-    
-    We download the video bytes and upload to Cloudinary for permanent storage.
     """
+    import httpx
+    
+    veo_video_id = request.veoVideoId
+    cache_key = request.operationId or veo_video_id[:60]
+    current_time = time.time()
+    is_download_owner = False  # Track if this request should perform the download
+    
     try:
-        import httpx
-        
-        veo_video_id = request.veoVideoId
-        
-        # Generate cache key from operationId (preferred) or veoVideoId prefix
-        cache_key = request.operationId or veo_video_id[:60]
-        current_time = time.time()
-        
-        # Check cache with proper locking to prevent race conditions
+        # ====================================================================
+        # STEP 1: Check cache and claim ownership atomically
+        # ====================================================================
         async with _download_cache_lock:
-            # Clean expired entries first
+            # Clean expired entries
             expired_keys = [k for k, v in _download_cache.items() 
-                           if isinstance(v, tuple) and len(v) == 2 and (current_time - v[1]) > _CACHE_TTL_SECONDS]
+                           if isinstance(v, tuple) and len(v) >= 2 and (current_time - v[1]) > _CACHE_TTL_SECONDS]
             for k in expired_keys:
                 del _download_cache[k]
                 logger.info(f"[Veo] Cache expired: {k}")
             
+            # Check if already cached
             if cache_key in _download_cache:
                 cached_entry = _download_cache[cache_key]
-                # Handle tuple format: (value, timestamp)
-                if isinstance(cached_entry, tuple) and len(cached_entry) == 2:
-                    cached_value, cached_time = cached_entry
-                    # Check if expired
+                if isinstance(cached_entry, tuple) and len(cached_entry) >= 2:
+                    cached_value, cached_time = cached_entry[0], cached_entry[1]
+                    
+                    # Check expiry
                     if (current_time - cached_time) > _CACHE_TTL_SECONDS:
                         del _download_cache[cache_key]
                         logger.info(f"[Veo] Cache entry expired for {cache_key}")
-                    elif cached_value == _CACHE_PENDING:
-                        logger.info(f"[Veo] Download in progress for {cache_key}, waiting...")
-                    elif cached_value:
+                    elif cached_value and cached_value != _CACHE_PENDING:
+                        # Already completed - return immediately
                         logger.info(f"[Veo] Cache hit for {cache_key}: {cached_value[:60]}...")
                         return VideoDownloadResponse(success=True, url=cached_value)
+                    elif cached_value == _CACHE_PENDING:
+                        # Another request is downloading - we'll wait below
+                        logger.info(f"[Veo] Download in progress for {cache_key}, will wait...")
             
-            # Not in cache or expired - mark as pending
+            # Claim ownership if not already pending
             if cache_key not in _download_cache:
-                # Enforce max size - remove oldest if needed
+                # Enforce max cache size
                 if len(_download_cache) >= _CACHE_MAX_SIZE:
                     oldest_key = min(_download_cache.keys(), 
                                     key=lambda k: _download_cache[k][1] if isinstance(_download_cache[k], tuple) else 0)
                     del _download_cache[oldest_key]
                     logger.info(f"[Veo] Cache full, removed oldest: {oldest_key}")
                 
+                # Mark as pending - WE are the owner
                 _download_cache[cache_key] = (_CACHE_PENDING, current_time)
-                logger.info(f"[Veo] Cache miss, marked {cache_key} as pending")
+                is_download_owner = True
+                logger.info(f"[Veo] Claimed download ownership for {cache_key}")
         
-        # If pending, wait for other request to complete
-        for _ in range(30):  # Wait up to 30 seconds
-            await asyncio.sleep(1)
-            async with _download_cache_lock:
-                if cache_key in _download_cache:
-                    entry = _download_cache[cache_key]
-                    if isinstance(entry, tuple) and len(entry) == 2:
-                        val, _ = entry
-                        if val != _CACHE_PENDING and val:
-                            logger.info(f"[Veo] Got URL after waiting: {val[:60]}...")
-                            return VideoDownloadResponse(success=True, url=val)
-                        elif val != _CACHE_PENDING:
-                            break  # Failed or removed
-                else:
-                    break  # Entry removed
+        # ====================================================================
+        # STEP 2: If not owner, wait for the owner to complete
+        # ====================================================================
+        if not is_download_owner:
+            logger.info(f"[Veo] Waiting for another request to complete download for {cache_key}...")
+            for wait_count in range(60):  # Wait up to 60 seconds for download + upload
+                await asyncio.sleep(1)
+                async with _download_cache_lock:
+                    if cache_key in _download_cache:
+                        entry = _download_cache[cache_key]
+                        if isinstance(entry, tuple) and len(entry) >= 2:
+                            val = entry[0]
+                            if val and val != _CACHE_PENDING:
+                                logger.info(f"[Veo] Got cached URL after {wait_count}s: {val[:60]}...")
+                                return VideoDownloadResponse(success=True, url=val)
+                    else:
+                        # Entry was removed (owner failed) - break and let caller retry
+                        logger.warning(f"[Veo] Owner request failed for {cache_key}")
+                        break
+            
+            # Timeout waiting for owner
+            logger.error(f"[Veo] Timeout waiting for download owner to complete {cache_key}")
+            return VideoDownloadResponse(success=False, error="Download timeout - please retry")
         
-        logger.info(f"[Veo] Download: veoVideoId={veo_video_id[:80]}...")
+        # ====================================================================
+        # STEP 3: We are the owner - perform the actual download
+        # ====================================================================
+        logger.info(f"[Veo] Starting download: veoVideoId={veo_video_id[:80]}...")
         
         video_bytes = None
         
-        # Check if veoVideoId is a URL (download directly)
+        # Download from URL or via SDK
         if veo_video_id.startswith("http://") or veo_video_id.startswith("https://"):
-            logger.info(f"[Veo] Downloading from URL directly...")
-            # follow_redirects=True is essential - Google's API returns 302 to actual storage URL
-            # timeout=360 for large videos that can take 4-5 minutes to download
+            logger.info(f"[Veo] Downloading from URL...")
             async with httpx.AsyncClient(timeout=360.0, follow_redirects=True) as http_client:
-                # Add API key for authenticated download
-                headers = {}
                 api_key = settings.gemini_key
                 if api_key and "generativelanguage.googleapis.com" in veo_video_id:
-                    # Append API key to URL for Google's API
-                    if "?" in veo_video_id:
-                        download_url = f"{veo_video_id}&key={api_key}"
-                    else:
-                        download_url = f"{veo_video_id}?key={api_key}"
+                    download_url = f"{veo_video_id}&key={api_key}" if "?" in veo_video_id else f"{veo_video_id}?key={api_key}"
                 else:
                     download_url = veo_video_id
                 
@@ -655,40 +666,38 @@ async def download_video(request: VideoDownloadRequest) -> VideoDownloadResponse
                     video_bytes = response.content
                     logger.info(f"[Veo] Downloaded {len(video_bytes)} bytes from URL")
                 else:
-                    logger.error(f"[Veo] Failed to download from URL: {response.status_code}")
-                    return VideoDownloadResponse(
-                        success=False,
-                        error=f"Failed to download video: HTTP {response.status_code}"
-                    )
+                    logger.error(f"[Veo] Download failed: HTTP {response.status_code}")
+                    async with _download_cache_lock:
+                        _download_cache.pop(cache_key, None)
+                    return VideoDownloadResponse(success=False, error=f"Download failed: HTTP {response.status_code}")
         else:
-            # Try SDK download method for video name/ID
+            # SDK download
             try:
                 client = get_genai_client()
-                video_ref = types.Video(uri=veo_video_id)  # Use uri instead of name
+                video_ref = types.Video(uri=veo_video_id)
                 client.files.download(file=video_ref)
                 video_bytes = getattr(video_ref, "video_bytes", None) or getattr(video_ref, "_video_bytes", None)
             except Exception as sdk_err:
-                logger.warning(f"[Veo] SDK download failed: {sdk_err}, trying as URI...")
-                # If SDK fails, try to construct download URL
+                logger.warning(f"[Veo] SDK download failed: {sdk_err}, trying constructed URL...")
                 if veo_video_id.startswith("files/"):
                     api_key = settings.gemini_key
                     download_url = f"https://generativelanguage.googleapis.com/v1beta/{veo_video_id}:download?alt=media&key={api_key}"
-                    async with httpx.AsyncClient(timeout=120.0) as http_client:
+                    async with httpx.AsyncClient(timeout=180.0, follow_redirects=True) as http_client:
                         response = await http_client.get(download_url)
                         if response.status_code == 200:
                             video_bytes = response.content
                             logger.info(f"[Veo] Downloaded {len(video_bytes)} bytes via constructed URL")
         
         if not video_bytes:
-            return VideoDownloadResponse(
-                success=False, 
-                error="Failed to download video bytes from Veo"
-            )
+            async with _download_cache_lock:
+                _download_cache.pop(cache_key, None)
+            return VideoDownloadResponse(success=False, error="Failed to download video bytes from Veo")
         
-        # Upload to Cloudinary for permanent storage
+        # ====================================================================
+        # STEP 4: Upload to Cloudinary
+        # ====================================================================
         logger.info(f"[Veo] Uploading {len(video_bytes)} bytes to Cloudinary...")
         
-        # Use Cloudinary service directly (sync method, wrap in thread)
         from src.services.cloudinary_service import CloudinaryService
         
         result = await asyncio.to_thread(
@@ -702,38 +711,32 @@ async def download_video(request: VideoDownloadRequest) -> VideoDownloadResponse
             video_url = result.get("secure_url") or result.get("url")
             logger.info(f"[Veo] Uploaded to Cloudinary: {video_url}")
             
-            # Cache the successful URL with timestamp
+            # Cache the successful URL
             async with _download_cache_lock:
                 _download_cache[cache_key] = (video_url, time.time())
-                logger.info(f"[Veo] Cached URL for operation {cache_key} (TTL: {_CACHE_TTL_SECONDS}s)")
+                logger.info(f"[Veo] Cached URL for {cache_key} (TTL: {_CACHE_TTL_SECONDS}s)")
             
             return VideoDownloadResponse(success=True, url=video_url)
         
-        # Cloudinary upload failed - remove pending marker
+        # Cloudinary upload failed
         async with _download_cache_lock:
-            entry = _download_cache.get(cache_key)
-            if isinstance(entry, tuple) and entry[0] == _CACHE_PENDING:
-                del _download_cache[cache_key]
+            _download_cache.pop(cache_key, None)
         
-        # Fallback: return the original URL if Cloudinary upload fails
+        # Fallback to original URL if it's a direct URL
         if veo_video_id.startswith("http"):
             logger.warning(f"[Veo] Cloudinary upload failed, returning original URL")
             return VideoDownloadResponse(success=True, url=veo_video_id)
         
-        return VideoDownloadResponse(
-            success=False, 
-            error="Failed to upload video to storage"
-        )
+        return VideoDownloadResponse(success=False, error="Failed to upload video to storage")
         
     except Exception as e:
-        # Clean up pending marker on error
-        try:
-            async with _download_cache_lock:
-                entry = _download_cache.get(cache_key)
-                if isinstance(entry, tuple) and entry[0] == _CACHE_PENDING:
-                    del _download_cache[cache_key]
-        except:
-            pass
+        # Clean up on error
+        if is_download_owner:
+            try:
+                async with _download_cache_lock:
+                    _download_cache.pop(cache_key, None)
+            except:
+                pass
         logger.error(f"[Veo] Download error: {e}", exc_info=True)
         return VideoDownloadResponse(success=False, error=str(e))
 
