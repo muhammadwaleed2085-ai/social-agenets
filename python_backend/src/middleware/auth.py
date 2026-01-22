@@ -87,6 +87,7 @@ PUBLIC_PATHS = [
     "/api/v1/comments/",  # Comments API uses workspace_id for access control
     "/api/v1/improve/",  # AI Improvement utility endpoints (content/prompts)
     "/api/v1/media/",  # AI Generative endpoints
+    "/api/v1/cron/",  # Cron endpoints use X-Cron-Secret auth instead of JWT
 ]
 
 OPTIONAL_AUTH_PATHS = [
