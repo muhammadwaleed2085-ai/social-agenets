@@ -117,6 +117,14 @@ def verify_cron_auth(x_cron_secret: Optional[str]) -> bool:
     """
     cron_secret = getattr(settings, 'CRON_SECRET', None)
     
+    # Debug logging to help diagnose auth issues
+    logger.info(f"[CRON AUTH] Header provided: {bool(x_cron_secret)}, length: {len(x_cron_secret) if x_cron_secret else 0}")
+    logger.info(f"[CRON AUTH] Secret configured: {bool(cron_secret)}, length: {len(cron_secret) if cron_secret else 0}")
+    if x_cron_secret and cron_secret:
+        logger.info(f"[CRON AUTH] Header first 10 chars: {x_cron_secret[:10]}...")
+        logger.info(f"[CRON AUTH] Secret first 10 chars: {cron_secret[:10]}...")
+        logger.info(f"[CRON AUTH] Match: {x_cron_secret == cron_secret}")
+    
     # If no CRON_SECRET is set, allow in development mode
     if not cron_secret:
         if not settings.is_production:
