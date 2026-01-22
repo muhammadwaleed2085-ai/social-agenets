@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from ...services.supabase_service import get_supabase_admin_client
 from ...services.meta_ads.meta_credentials_service import MetaCredentialsService
+from ...services.token_refresh_service import token_refresh_service
 from ...agents.comment_agent import (
     process_comments,
     ProcessCommentsRequest,
@@ -152,6 +153,8 @@ async def get_platform_credentials(workspace_id: str, platform: str) -> Dict[str
         Exception: If credentials not found
     """
     if platform in ["facebook", "instagram"]:
+        # Auto-refresh Meta tokens if expiring
+        await MetaCredentialsService.auto_refresh_if_needed(workspace_id)
         if platform == "instagram":
             meta_credentials = await MetaCredentialsService.get_instagram_credentials(workspace_id)
             if not meta_credentials:
@@ -182,6 +185,18 @@ async def get_platform_credentials(workspace_id: str, platform: str) -> Dict[str
             "expiresAt": meta_credentials.get("expires_at"),
         }
 
+    # Auto-refresh non-Meta credentials if expiring
+    refresh_result = await token_refresh_service.get_valid_credentials(
+        platform=platform,
+        workspace_id=workspace_id
+    )
+    if not refresh_result.success:
+        raise Exception(refresh_result.error or f"{platform} token refresh failed")
+
+    credentials = refresh_result.credentials or {}
+    if not credentials:
+        raise Exception(f"No credentials found for {platform}")
+
     supabase = get_supabase_admin_client()
 
     result = supabase.table("social_accounts").select(
@@ -196,7 +211,7 @@ async def get_platform_credentials(workspace_id: str, platform: str) -> Dict[str
     if not account.get("is_connected"):
         raise Exception(f"{platform} account is not connected")
 
-    raw_credentials = account.get("credentials_encrypted", {})
+    raw_credentials = credentials or account.get("credentials_encrypted", {})
 
     if not raw_credentials:
         raise Exception(f"No credentials found for {platform}")
@@ -223,6 +238,20 @@ async def get_platform_credentials(workspace_id: str, platform: str) -> Dict[str
                 raise Exception(f"Failed to decrypt credentials for {platform}: {e}")
     else:
         raise Exception(f"Invalid credentials format for {platform}")
+
+    if platform == "linkedin":
+        profile_id = credentials.get("profileId") or credentials.get("userId")
+        if not credentials.get("accessToken") or not profile_id:
+            raise Exception("Invalid LinkedIn configuration")
+        credentials["profileId"] = profile_id
+    elif platform == "twitter":
+        if not credentials.get("accessToken"):
+            raise Exception("Invalid X configuration. Please reconnect your account.")
+        if not credentials.get("accessTokenSecret"):
+            credentials["accessTokenSecret"] = ""
+    elif platform in ["tiktok", "youtube"]:
+        if not credentials.get("accessToken"):
+            raise Exception(f"Invalid {platform} configuration")
 
     return credentials
 
