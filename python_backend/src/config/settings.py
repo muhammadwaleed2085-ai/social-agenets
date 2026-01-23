@@ -65,6 +65,10 @@ class Settings(BaseSettings):
             return default
         
         url = v.strip()
+
+        if "," in url:
+            logger.warning("Multiple URLs detected in %s; using the first entry.", field_name)
+            url = url.split(",", 1)[0].strip()
         
         # Handle Render's internal format (no protocol, no dots)
         if '://' not in url and 'localhost' not in url and '127.0.0.1' not in url:
