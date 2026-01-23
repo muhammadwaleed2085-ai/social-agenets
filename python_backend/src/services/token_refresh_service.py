@@ -20,6 +20,7 @@ Based on Dec 2025 platform API documentation:
 """
 import base64
 import httpx
+import json
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, Tuple
@@ -161,6 +162,18 @@ class TokenRefreshService:
             
             account = response.data[0]
             credentials = account.get("credentials_encrypted", {})
+            if isinstance(credentials, str):
+                if credentials.startswith("{"):
+                    try:
+                        credentials = json.loads(credentials)
+                    except json.JSONDecodeError:
+                        credentials = {}
+                else:
+                    try:
+                        from .meta_ads.meta_credentials_service import MetaCredentialsService
+                        credentials = MetaCredentialsService._decrypt_credentials(credentials, workspace_id) or {}
+                    except Exception:
+                        credentials = {}
             db_id = account["id"]
             
             if not credentials:
