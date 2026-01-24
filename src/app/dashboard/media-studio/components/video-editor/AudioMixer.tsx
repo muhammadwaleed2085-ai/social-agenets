@@ -33,7 +33,7 @@ export function AudioMixer({ libraryVideos, isLoadingLibrary, onProcessComplete 
   const { workspaceId } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [selectedAudio, setSelectedAudio] = useState<AudioItem | null>(null);
-  const [muteOriginal, setMuteOriginal] = useState(false);
+  const [muteOriginal, setMuteOriginal] = useState(true);
   const [originalVolume, setOriginalVolume] = useState(100);
   const [musicVolume, setMusicVolume] = useState(80);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -46,8 +46,8 @@ export function AudioMixer({ libraryVideos, isLoadingLibrary, onProcessComplete 
       return;
     }
 
-    if (!muteOriginal && !selectedAudio) {
-      toast.error('Please select background music or mute original audio');
+    if (!selectedAudio) {
+      toast.error('Please select new audio to add');
       return;
     }
 
@@ -112,16 +112,16 @@ export function AudioMixer({ libraryVideos, isLoadingLibrary, onProcessComplete 
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Left: Video Selection */}
       <Card className="flex flex-col h-full overflow-hidden border-zinc-200 dark:border-zinc-800 shadow-sm">
-        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b pb-4">
+        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b py-1">
           <CardTitle className="text-lg flex items-center gap-2 text-white">
             <Video className="w-5 h-5 text-white" />
             Select Video
           </CardTitle>
           <CardDescription className="text-teal-50">
-            Choose a video to add or modify audio
+            Choose a video and add new audio
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -199,7 +199,7 @@ export function AudioMixer({ libraryVideos, isLoadingLibrary, onProcessComplete 
 
       {/* Middle: Audio Controls */}
       <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b pb-4">
+        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b py-1">
           <CardTitle className="text-lg flex items-center gap-2 text-white">
             <Volume2 className="w-5 h-5 text-white" />
             Audio Settings
@@ -241,7 +241,7 @@ export function AudioMixer({ libraryVideos, isLoadingLibrary, onProcessComplete 
           <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
             <div className="flex items-center gap-2">
               <VolumeX className="w-4 h-4" />
-              <span className="text-sm font-medium">Mute Original Audio</span>
+              <span className="text-sm font-medium">Replace Original Audio</span>
             </div>
             <Switch
               checked={muteOriginal}

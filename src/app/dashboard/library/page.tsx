@@ -151,7 +151,7 @@ export default function LibraryPage() {
     <div className="min-h-screen bg-transparent">
       {/* Header with Toolbar */}
       <div className="sticky top-0 z-20 border-b bg-canva-gradient/95 backdrop-blur-sm shadow-sm">
-        <div className="relative px-3 py-1.5">
+        <div className="relative px-3 py-1">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* Left: Logo and Title */}
             <div className="flex items-center gap-3">

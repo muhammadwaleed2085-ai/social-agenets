@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field
 
 from src.services.media_studio import ImageService, AudioService
 from src.services.media_studio.video import (
-    TextOverlayService,
     TransitionService,
     TransitionType,
     VideoMerger,
@@ -40,6 +39,10 @@ class ImageResizeRequest(BaseModel):
     platform: Optional[str] = None
     custom_width: Optional[int] = Field(None, alias="customWidth")
     custom_height: Optional[int] = Field(None, alias="customHeight")
+    resize_mode: Literal["cover", "contain", "stretch"] = Field("cover", alias="resizeMode")
+    output_format: Literal["auto", "jpeg", "png"] = Field("auto", alias="outputFormat")
+    background_color: str = Field("#000000", alias="backgroundColor")
+    jpeg_quality: int = Field(95, alias="jpegQuality", ge=60, le=100)
     
     class Config:
         populate_by_name = True
@@ -105,54 +108,6 @@ class AudioProcessResponse(BaseModel):
     success: bool
     url: str
     media_item: Optional[dict] = Field(None, alias="mediaItem")
-
-
-# ================== NEW VIDEO EDITING SCHEMAS ==================
-
-
-
-
-class TextOverlayRequest(BaseModel):
-    """Request to add text overlay to video"""
-    workspace_id: str = Field(..., alias="workspaceId")
-    video_url: str = Field(..., alias="videoUrl")
-    text: str
-    position: str = "bottom_center"
-    font_size: int = Field(48, alias="fontSize", ge=12, le=200)
-    font_color: str = Field("white", alias="fontColor")
-    bg_color: Optional[str] = Field(None, alias="bgColor")
-    bg_opacity: float = Field(0.5, alias="bgOpacity", ge=0, le=1)
-    start_time: Optional[float] = Field(None, alias="startTime")
-    end_time: Optional[float] = Field(None, alias="endTime")
-    
-    class Config:
-        populate_by_name = True
-
-
-class TextOverlayResponse(BaseModel):
-    """Response from text overlay operation"""
-    success: bool
-    url: str
-    text: str
-    position: str
-    media_item: Optional[dict] = Field(None, alias="mediaItem")
-
-
-class TitleCardRequest(BaseModel):
-    """Request to add title card to video"""
-    workspace_id: str = Field(..., alias="workspaceId")
-    video_url: str = Field(..., alias="videoUrl")
-    title: str
-    subtitle: Optional[str] = None
-    duration: float = Field(3.0, ge=1.0, le=10.0)
-    position: Literal["start", "end"] = "start"
-    bg_color: str = Field("black", alias="bgColor")
-    title_color: str = Field("white", alias="titleColor")
-    title_size: int = Field(72, alias="titleSize", ge=24, le=200)
-    subtitle_size: int = Field(36, alias="subtitleSize", ge=12, le=100)
-    
-    class Config:
-        populate_by_name = True
 
 
 class TransitionsListResponse(BaseModel):
@@ -264,7 +219,11 @@ async def resize_image(request: ImageResizeRequest):
             image_url=request.image_url,
             platform=request.platform,
             custom_width=request.custom_width,
-            custom_height=request.custom_height
+            custom_height=request.custom_height,
+            resize_mode=request.resize_mode,
+            output_format=request.output_format,
+            background_color=request.background_color,
+            jpeg_quality=request.jpeg_quality
         )
         
         # Upload to Cloudinary
@@ -320,6 +279,8 @@ async def resize_image(request: ImageResizeRequest):
             "tags": ["resized", "image-editor", platform_slug],
         }
         
+        saved_item = await save_to_library(request.workspace_id, media_item)
+
         return ImageResizeResponse(
             success=True,
             url=public_url,
@@ -327,7 +288,7 @@ async def resize_image(request: ImageResizeRequest):
             dimensions={"width": result.width, "height": result.height},
             format=result.format,
             file_size=result.file_size,
-            media_item=media_item
+            media_item=saved_item
         )
         
     except ValueError as e:
@@ -557,162 +518,6 @@ async def process_audio(request: AudioProcessRequest):
 async def get_available_transitions():
     """Get all available video transition types"""
     return {"transitions": TransitionService.get_available_transitions()}
-
-
-@router.get("/text-positions")
-async def get_text_positions():
-    """Get available text overlay positions"""
-    return {"positions": TextOverlayService.get_positions()}
-
-
-
-@router.post("/add-text", response_model=TextOverlayResponse)
-async def add_text_overlay(request: TextOverlayRequest):
-    """Add text overlay to video"""
-    try:
-        result = await TextOverlayService.add_text(
-            video_url=request.video_url,
-            text=request.text,
-            position=request.position,
-            font_size=request.font_size,
-            font_color=request.font_color,
-            bg_color=request.bg_color,
-            bg_opacity=request.bg_opacity,
-            start_time=request.start_time,
-            end_time=request.end_time
-        )
-        
-        # Upload to Cloudinary
-        cloudinary = CloudinaryService()
-        
-        timestamp = int(datetime.now().timestamp() * 1000)
-        public_id = f"text/text-overlay-{timestamp}"
-        
-        upload_result = cloudinary.upload_video_bytes(
-            video_bytes=result.buffer,
-            public_id=public_id,
-            folder="media-studio",
-            tags=[f"workspace:{request.workspace_id}", "text-overlay", "video-editor"]
-        )
-        
-        public_url = upload_result.get("secure_url")
-        if not public_url:
-            raise ValueError("Failed to get Cloudinary URL")
-        
-        media_item = {
-            "type": "video",
-            "source": "edited",
-            "url": public_url,
-            "prompt": f"Text overlay: {request.text[:50]}...",
-            "model": "video-text",
-            "config": {
-                "sourceVideo": request.video_url,
-                "text": request.text,
-                "position": result.position,
-                "fontSize": request.font_size,
-                "fontColor": request.font_color,
-                "processedAt": datetime.now().isoformat(),
-            },
-            "metadata": {
-                "duration": result.duration,
-                "text": request.text,
-                "position": result.position,
-            },
-            "tags": ["text-overlay", "video-editor", "edited"],
-        }
-        
-        # Save to library database
-        saved_item = await save_to_library(request.workspace_id, media_item)
-        
-        return TextOverlayResponse(
-            success=True,
-            url=public_url,
-            text=request.text,
-            position=result.position,
-            media_item=saved_item
-        )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail={"error": str(e), "code": "TEXT_OVERLAY_ERROR"}
-        )
-
-
-@router.post("/add-title-card", response_model=TextOverlayResponse)
-async def add_title_card(request: TitleCardRequest):
-    """Add title card to video"""
-    try:
-        result = await TextOverlayService.add_title_card(
-            video_url=request.video_url,
-            title=request.title,
-            subtitle=request.subtitle,
-            duration=request.duration,
-            position=request.position,
-            bg_color=request.bg_color,
-            title_color=request.title_color,
-            title_size=request.title_size,
-            subtitle_size=request.subtitle_size
-        )
-        
-        # Upload to Cloudinary
-        cloudinary = CloudinaryService()
-        
-        timestamp = int(datetime.now().timestamp() * 1000)
-        public_id = f"title/title-card-{timestamp}"
-        
-        upload_result = cloudinary.upload_video_bytes(
-            video_bytes=result.buffer,
-            public_id=public_id,
-            folder="media-studio",
-            tags=[f"workspace:{request.workspace_id}", "title-card", "video-editor"]
-        )
-        
-        public_url = upload_result.get("secure_url")
-        if not public_url:
-            raise ValueError("Failed to get Cloudinary URL")
-        
-        media_item = {
-            "type": "video",
-            "source": "edited",
-            "url": public_url,
-            "prompt": f"Title card: {request.title}",
-            "model": "video-title-card",
-            "config": {
-                "sourceVideo": request.video_url,
-                "title": request.title,
-                "subtitle": request.subtitle,
-                "cardDuration": request.duration,
-                "cardPosition": request.position,
-                "processedAt": datetime.now().isoformat(),
-            },
-            "metadata": {
-                "duration": result.duration,
-                "title": request.title,
-            },
-            "tags": ["title-card", "video-editor", "edited"],
-        }
-        
-        # Save to library database
-        saved_item = await save_to_library(request.workspace_id, media_item)
-        
-        return TextOverlayResponse(
-            success=True,
-            url=public_url,
-            text=request.title,
-            position=request.position,
-            media_item=saved_item
-        )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail={"error": str(e), "code": "TITLE_CARD_ERROR"}
-        )
 
 
 # ================== LIBRARY ENDPOINTS ==================

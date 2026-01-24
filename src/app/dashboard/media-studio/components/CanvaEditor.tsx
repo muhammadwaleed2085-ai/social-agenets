@@ -793,7 +793,7 @@ export function CanvaEditor({ onMediaSaved, activeTab: controlledActiveTab, onTa
 
   // Connected state
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Tabs - Only show TabsList if not controlled from parent (header) */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'designs' | 'video-editor')}>
         {!controlledActiveTab && (
@@ -811,7 +811,7 @@ export function CanvaEditor({ onMediaSaved, activeTab: controlledActiveTab, onTa
         )}
 
         {/* Designs Tab - Export designs back */}
-        <TabsContent value="designs" className="mt-4">
+        <TabsContent value="designs" className="mt-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Your Canva Designs</CardTitle>
@@ -972,7 +972,7 @@ export function CanvaEditor({ onMediaSaved, activeTab: controlledActiveTab, onTa
         </TabsContent>
 
         {/* Video Editor Tab - Merge videos & Audio mixing */}
-        <TabsContent value="video-editor" className="mt-4">
+        <TabsContent value="video-editor" className="mt-1">
           <VideoEditor onVideoProcessed={handleVideoProcessed} />
         </TabsContent>
       </Tabs>

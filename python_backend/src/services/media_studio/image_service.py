@@ -5,7 +5,7 @@ Uses Pillow for high-quality image resizing with platform presets
 
 import io
 import httpx
-from PIL import Image
+from PIL import Image, ImageColor
 from typing import Literal, Optional
 from dataclasses import dataclass
 
@@ -74,7 +74,11 @@ class ImageService:
     def resize_image(
         image_data: bytes,
         target_width: int,
-        target_height: int
+        target_height: int,
+        resize_mode: Literal["cover", "contain", "stretch"] = "contain",
+        output_format: Literal["auto", "jpeg", "png"] = "auto",
+        background_color: str = "#ffffff",
+        jpeg_quality: int = 95
     ) -> ResizeResult:
         """
         Resize image to target dimensions with high quality settings.
@@ -94,48 +98,78 @@ class ImageService:
         )
         
         # Decide output format
-        output_format: Literal["jpeg", "png"] = "png" if has_alpha else "jpeg"
-        
+        if output_format == "auto":
+            output_format = "png" if has_alpha or background_color == "transparent" else "jpeg"
+
         # Convert to appropriate mode for processing
-        if has_alpha:
+        if output_format == "png" and (has_alpha or background_color == "transparent"):
             img = img.convert("RGBA")
         else:
             img = img.convert("RGB")
-        
-        # Calculate crop dimensions for "cover" fit
-        # Scale to fill the target area, then center crop
-        source_ratio = original_width / original_height
-        target_ratio = target_width / target_height
-        
-        if source_ratio > target_ratio:
-            # Image is wider than target - scale by height, crop width
-            new_height = target_height
-            new_width = int(original_width * (target_height / original_height))
+
+        if resize_mode == "stretch":
+            img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        elif resize_mode == "contain":
+            scale = min(target_width / original_width, target_height / original_height)
+            new_width = max(1, int(original_width * scale))
+            new_height = max(1, int(original_height * scale))
+            resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            if output_format == "png" and background_color == "transparent":
+                canvas = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
+                resized = resized.convert("RGBA")
+                paste_mask = resized
+            else:
+                canvas_mode = "RGBA" if output_format == "png" and has_alpha else "RGB"
+                if canvas_mode == "RGBA":
+                    canvas_color = ImageColor.getcolor(background_color, "RGBA")
+                else:
+                    canvas_color = ImageColor.getcolor(background_color, "RGB")
+                canvas = Image.new(canvas_mode, (target_width, target_height), canvas_color)
+                resized = resized.convert(canvas_mode)
+                paste_mask = resized if resized.mode == "RGBA" else None
+
+            left = (target_width - new_width) // 2
+            top = (target_height - new_height) // 2
+            canvas.paste(resized, (left, top), paste_mask)
+            img = canvas
         else:
-            # Image is taller than target - scale by width, crop height
-            new_width = target_width
-            new_height = int(original_height * (target_width / original_width))
-        
-        # Resize with LANCZOS for best quality
-        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        # Center crop to exact target dimensions
-        left = (new_width - target_width) // 2
-        top = (new_height - target_height) // 2
-        right = left + target_width
-        bottom = top + target_height
-        
-        img = img.crop((left, top, right, bottom))
+            # Calculate crop dimensions for "cover" fit
+            # Scale to fill the target area, then center crop
+            source_ratio = original_width / original_height
+            target_ratio = target_width / target_height
+
+            if source_ratio > target_ratio:
+                # Image is wider than target - scale by height, crop width
+                new_height = target_height
+                new_width = int(original_width * (target_height / original_height))
+            else:
+                # Image is taller than target - scale by width, crop height
+                new_width = target_width
+                new_height = int(original_height * (target_width / original_width))
+
+            # Resize with LANCZOS for best quality
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Center crop to exact target dimensions
+            left = (new_width - target_width) // 2
+            top = (new_height - target_height) // 2
+            right = left + target_width
+            bottom = top + target_height
+
+            img = img.crop((left, top, right, bottom))
         
         # Save to buffer with high quality settings
         output_buffer = io.BytesIO()
         
         if output_format == "jpeg":
+            if img.mode != "RGB":
+                img = img.convert("RGB")
             # High quality JPEG with optimized settings
             img.save(
                 output_buffer,
                 format="JPEG",
-                quality=95,
+                quality=jpeg_quality,
                 optimize=True,
                 progressive=True
             )
@@ -165,7 +199,11 @@ class ImageService:
         image_url: str,
         platform: Optional[str] = None,
         custom_width: Optional[int] = None,
-        custom_height: Optional[int] = None
+        custom_height: Optional[int] = None,
+        resize_mode: Literal["cover", "contain", "stretch"] = "cover",
+        output_format: Literal["auto", "jpeg", "png"] = "auto",
+        background_color: str = "#000000",
+        jpeg_quality: int = 95
     ) -> tuple[ResizeResult, str]:
         """
         Resize image for a specific platform or custom dimensions.
@@ -188,6 +226,14 @@ class ImageService:
         image_data = await cls.download_image(image_url)
         
         # Resize image
-        result = cls.resize_image(image_data, target_width, target_height)
+        result = cls.resize_image(
+            image_data,
+            target_width,
+            target_height,
+            resize_mode=resize_mode,
+            output_format=output_format,
+            background_color=background_color,
+            jpeg_quality=jpeg_quality
+        )
         
         return result, platform_name

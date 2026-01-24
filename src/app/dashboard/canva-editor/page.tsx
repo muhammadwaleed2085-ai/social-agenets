@@ -18,7 +18,7 @@ export default function CanvaEditorPage() {
     <div className="min-h-screen bg-transparent">
       {/* Header with Toolbar - Matching Library Page Design */}
       <div className="sticky top-0 z-20 border-b bg-canva-gradient/95 backdrop-blur-sm shadow-sm">
-        <div className="relative px-4 py-2">
+        <div className="relative px-2 pt-0.5 pb-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* Left: Logo and Title */}
             <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export default function CanvaEditorPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 pt-2 px-6 pb-6 overflow-auto">
+      <div className="flex-1 pt-1 px-6 pb-6 overflow-auto">
         <CanvaEditor
           onMediaSaved={(url) => {
           }}

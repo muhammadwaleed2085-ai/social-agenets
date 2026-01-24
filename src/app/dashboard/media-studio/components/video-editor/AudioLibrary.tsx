@@ -68,6 +68,13 @@ export function AudioLibrary({ selectedAudio, onSelectAudio }: AudioLibraryProps
     }
   };
 
+  const formatDuration = (duration?: number) => {
+    if (!duration || duration <= 0) return null;
+    const minutes = Math.floor(duration / 60);
+    const seconds = Math.floor(duration % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -172,7 +179,7 @@ export function AudioLibrary({ selectedAudio, onSelectAudio }: AudioLibraryProps
 
   return (
     <Card className="flex flex-col h-full overflow-hidden border-zinc-200 dark:border-zinc-800 shadow-sm">
-      <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b pb-4">
+      <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b py-1">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg flex items-center gap-2 text-white">
@@ -226,26 +233,27 @@ export function AudioLibrary({ selectedAudio, onSelectAudio }: AudioLibraryProps
             {audioItems.map((audio) => {
               const isSelected = selectedAudio?.id === audio.id;
               const isPlaying = playingId === audio.id;
+              const durationLabel = formatDuration(audio.duration);
 
               return (
                 <div
                   key={audio.id}
-                  className={`group relative rounded-xl overflow-hidden border-2 transition-all shadow-sm hover:shadow-md cursor-pointer ${isSelected
-                    ? 'border-purple-500 ring-2 ring-purple-200 bg-purple-50 dark:bg-purple-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 bg-white dark:bg-gray-800'
+                  className={`group relative rounded-lg border transition-all shadow-sm hover:shadow-md cursor-pointer ${isSelected
+                    ? 'border-teal-500 ring-1 ring-teal-200/80 bg-white dark:bg-slate-900'
+                    : 'border-slate-300 dark:border-slate-700 hover:border-teal-300 bg-white dark:bg-slate-900'
                     }`}
                   onClick={() => onSelectAudio(isSelected ? null : audio)}
                 >
                   <div className="flex items-center gap-3 p-3">
                     {/* Play button with audio icon */}
                     <div className="relative flex-shrink-0">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${isPlaying
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50'
+                      <div className={`w-11 h-11 rounded-lg flex items-center justify-center transition-colors ${isPlaying
+                        ? 'bg-teal-500 text-white'
+                        : 'bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/40 dark:to-emerald-900/40'
                         }`}>
                         {audio.source === 'uploaded'
-                          ? <Music className={`w-5 h-5 ${isPlaying ? 'text-white' : 'text-purple-500'}`} />
-                          : <AudioLines className={`w-5 h-5 ${isPlaying ? 'text-white' : 'text-pink-500'}`} />
+                          ? <Music className={`w-5 h-5 ${isPlaying ? 'text-white' : 'text-teal-600'}`} />
+                          : <AudioLines className={`w-5 h-5 ${isPlaying ? 'text-white' : 'text-emerald-600'}`} />
                         }
                       </div>
                       <Button
@@ -267,20 +275,27 @@ export function AudioLibrary({ selectedAudio, onSelectAudio }: AudioLibraryProps
 
                     {/* Audio Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">
-                        {audio.name || 'Untitled Audio'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(audio.created_at).toLocaleDateString()}
-                      </p>
-                      {audio.source && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded mt-1 inline-block ${audio.source === 'uploaded'
-                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
-                          }`}>
-                          {audio.source === 'uploaded' ? 'Uploaded' : 'Generated'}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold truncate text-gray-900 dark:text-gray-100">
+                          {audio.name || 'Untitled Audio'}
+                        </p>
+                        {durationLabel && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                            {durationLabel}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <span>{new Date(audio.created_at).toLocaleDateString()}</span>
+                        {audio.source && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${audio.source === 'uploaded'
+                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                            }`}>
+                            {audio.source === 'uploaded' ? 'Uploaded' : 'Generated'}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Selected indicator & Delete */}

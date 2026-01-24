@@ -167,10 +167,10 @@ export function VideoMerger({ libraryVideos, isLoadingLibrary, onMergeComplete }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-200px)] min-h-[600px]">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[calc(100vh-200px)] min-h-[600px]">
       {/* Left: Video Library Selection */}
       <Card className="flex flex-col h-full overflow-hidden border-zinc-200 dark:border-zinc-800 shadow-sm">
-        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b pb-4">
+        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b py-1">
           <CardTitle className="text-lg flex items-center gap-2 text-white">
             <Video className="w-5 h-5 text-white" />
             Library
@@ -260,7 +260,7 @@ export function VideoMerger({ libraryVideos, isLoadingLibrary, onMergeComplete }
 
       {/* Right: Merge Queue & Settings */}
       <Card className="flex flex-col h-full border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b pb-4">
+        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white border-b py-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2 text-white">
               <Film className="w-5 h-5 text-white" />
@@ -279,40 +279,6 @@ export function VideoMerger({ libraryVideos, isLoadingLibrary, onMergeComplete }
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-          {/* Settings Bar */}
-          <div className="flex items-center gap-3 p-4 border-b bg-background/50 backdrop-blur-sm">
-            <Settings2 className="w-4 h-4 text-muted-foreground" />
-            <div className="flex gap-2 flex-1">
-              <Select value={quality} onValueChange={(v: any) => setQuality(v)}>
-                <SelectTrigger className="h-8 text-xs w-[110px]">
-                  <SelectValue placeholder="Quality" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft (Fast)</SelectItem>
-                  <SelectItem value="high">High Quality</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={resolution} onValueChange={(v: any) => setResolution(v)}>
-                <SelectTrigger className="h-8 text-xs w-[120px]">
-                  <SelectValue placeholder="Resolution" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="original">Original Size</SelectItem>
-                  <SelectItem value="720p">720p Compact</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="p-4 border-b space-y-3 bg-zinc-50/30 dark:bg-zinc-900/30">
-            <input
-              type="text"
-              value={mergeTitle}
-              onChange={(e) => setMergeTitle(e.target.value)}
-              placeholder="Name your masterpiece (optional)..."
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:ring-2 ring-indigo-500/20 outline-none transition-all"
-            />
-          </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
             {mergeQueue.length === 0 ? (

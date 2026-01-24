@@ -6,20 +6,18 @@ import {
   Music,
   Merge,
   Image as ImageIcon,
-  Type,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { VideoItem } from './types';
 import { VideoMerger } from './VideoMerger';
 import { AudioMixer } from './AudioMixer';
 import { ImageResizer } from './ImageResizer';
-import { TextOverlay } from './TextOverlay';
 
 interface VideoEditorProps {
   onVideoProcessed?: (videoUrl: string) => void;
 }
 
-type TabValue = 'merge' | 'text' | 'audio' | 'image';
+type TabValue = 'merge' | 'audio' | 'image';
 
 export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
   const { workspaceId } = useAuth();
@@ -71,18 +69,17 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
   };
 
   const tabs = [
-    { id: 'merge' as const, label: 'Merge', icon: Merge, color: 'teal' },
-    { id: 'text' as const, label: 'Text', icon: Type, color: 'purple' },
-    { id: 'audio' as const, label: 'Audio', icon: Music, color: 'purple' },
-    { id: 'image' as const, label: 'Image', icon: ImageIcon, color: 'teal' },
+    { id: 'merge' as const, label: 'Merge Videos', icon: Merge, color: 'teal' },
+    { id: 'audio' as const, label: 'Remix Audio', icon: Music, color: 'purple' },
+    { id: 'image' as const, label: 'Resize Images', icon: ImageIcon, color: 'teal' },
   ];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-0">
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
         {/* Tab Navigation - Compact Style */}
-        <div className="bg-card border rounded-md p-0.5 shadow-sm">
-          <TabsList className="grid w-full grid-cols-4 bg-transparent gap-0.5 h-auto">
+        <div className="bg-card border rounded-md pt-0 pb-1 px-0 shadow-sm -mt-1">
+          <TabsList className="grid w-full grid-cols-3 bg-transparent gap-0.5 h-auto">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
 
@@ -91,7 +88,7 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
                   key={tab.id}
                   value={tab.id}
                   className={`
-                    relative flex items-center justify-center gap-1 h-7 px-1.5 rounded 
+                    relative flex items-center justify-center gap-0.5 h-6 px-1 rounded 
                     text-[10px] sm:text-[11px] font-medium transition-all duration-200
                     data-[state=inactive]:hover:bg-muted/60
                     group
@@ -137,7 +134,7 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
           </TabsList>
         </div>
 
-        <TabsContent value="merge" className="mt-2">
+        <TabsContent value="merge" className="mt-0">
           <VideoMerger
             libraryVideos={libraryVideos}
             isLoadingLibrary={isLoadingLibrary}
@@ -145,15 +142,7 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
           />
         </TabsContent>
 
-        <TabsContent value="text" className="mt-2">
-          <TextOverlay
-            libraryVideos={libraryVideos}
-            isLoadingLibrary={isLoadingLibrary}
-            onTextComplete={handleProcessComplete}
-          />
-        </TabsContent>
-
-        <TabsContent value="audio" className="mt-2">
+        <TabsContent value="audio" className="mt-0">
           <AudioMixer
             libraryVideos={libraryVideos}
             isLoadingLibrary={isLoadingLibrary}
@@ -161,7 +150,7 @@ export function VideoEditor({ onVideoProcessed }: VideoEditorProps) {
           />
         </TabsContent>
 
-        <TabsContent value="image" className="mt-2">
+        <TabsContent value="image" className="mt-0">
           <ImageResizer
             onResizeComplete={handleProcessComplete}
           />
