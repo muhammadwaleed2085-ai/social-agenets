@@ -151,7 +151,12 @@ export function VideoMerger({ libraryVideos, isLoadingLibrary, onMergeComplete }
         onMergeComplete(data.url);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to merge videos');
+        const errorMessage =
+          error?.detail?.error ||
+          error?.detail ||
+          error?.error ||
+          'Failed to merge videos';
+        toast.error(errorMessage);
       }
     } catch (error) {
       toast.dismiss(loadingToast);

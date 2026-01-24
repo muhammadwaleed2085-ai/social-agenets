@@ -104,9 +104,10 @@ class VideoMerger:
             is_vertical = vertical_count > horizontal_count
             
             # 5. Determine output resolution
-            first_probe = probes[0]
-            output_width = first_probe.width
-            output_height = first_probe.height
+            max_width = max(probe.width for probe in probes)
+            max_height = max(probe.height for probe in probes)
+            output_width = max_width
+            output_height = max_height
             
             if resolution == "720p":
                 if output_width > 1280 or output_height > 720:
@@ -136,8 +137,7 @@ class VideoMerger:
                 video_filter = f"{scale_filter},fps=30,format=yuv420p"
                 audio_filter = (
                     "aresample=44100,"
-                    "aformat=sample_fmts=fltp:channel_layouts=stereo,"
-                    "loudnorm=I=-16:TP=-1.5:LRA=11"
+                    "aformat=sample_fmts=fltp:channel_layouts=stereo"
                 )
                 
                 if probe.has_audio:
@@ -183,26 +183,7 @@ class VideoMerger:
                 returncode, stdout, stderr = await run_ffmpeg(args, timeout_seconds)
                 
                 if returncode != 0:
-                    # Fallback: try with silent audio
-                    fallback_args = [
-                        ffmpeg_path, "-y", "-threads", "0",
-                        "-i", str(file_path),
-                        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-                        "-filter_complex", f"[0:v]{video_filter}[v]",
-                        "-map", "[v]", "-map", "1:a",
-                        "-c:v", "libx264",
-                        "-preset", preset,
-                        "-crf", crf,
-                        "-c:a", "aac",
-                        "-b:a", audio_bitrate,
-                        "-shortest",
-                        "-movflags", "+faststart",
-                        str(normalized_path)
-                    ]
-                    returncode, stdout, stderr = await run_ffmpeg(fallback_args, timeout_seconds)
-                    
-                    if returncode != 0:
-                        raise RuntimeError(f"Failed to normalize video {i + 1}")
+                    raise RuntimeError(f"Failed to normalize video {i + 1}: {stderr[-500:]}")
                 
                 normalized_files.append(normalized_path)
             
@@ -228,7 +209,15 @@ class VideoMerger:
                     "-f", "concat",
                     "-safe", "0",
                     "-i", str(concat_path),
-                    "-c", "copy",
+                    "-c:v", "libx264",
+                    "-preset", preset,
+                    "-crf", crf,
+                    "-profile:v", "high",
+                    "-level", "4.1",
+                    "-c:a", "aac",
+                    "-b:a", audio_bitrate,
+                    "-ar", "44100",
+                    "-ac", "2",
                     "-movflags", "+faststart",
                     str(output_path)
                 ]

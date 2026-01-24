@@ -21,6 +21,7 @@ import {
   Film,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMedia } from '@/contexts/MediaContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import toast from 'react-hot-toast';
 import { SendToPostModal, SendConfig, MediaToSend } from './SendToPostModal';
@@ -105,11 +106,13 @@ export function CanvaEditor({ onMediaSaved, activeTab: controlledActiveTab, onTa
 
   // Dashboard context for refreshing posts
   const { refreshData } = useDashboard();
+  const { refreshMedia } = useMedia();
 
   // Handle video editor completion
   const handleVideoProcessed = async (videoUrl: string) => {
     await fetchLibraryItems();
-    setActiveTab('designs');
+    await refreshMedia();
+    toast.success('Merged video saved to library');
     if (onMediaSaved) {
       onMediaSaved(videoUrl);
     }

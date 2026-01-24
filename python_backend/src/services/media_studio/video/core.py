@@ -43,11 +43,11 @@ VIDEO_PLATFORM_PRESETS = {
     "linkedin": {"width": 1920, "height": 1080, "aspect_ratio": "16:9", "name": "LinkedIn (16:9)", "max_duration": 600},
 }
 
-# Maximum total duration for merged videos (5 minutes)
-MAX_MERGE_DURATION_SECONDS = 300
+# Maximum total duration for merged videos (8 minutes)
+MAX_MERGE_DURATION_SECONDS = 480
 
 # Default timeout for video operations
-DEFAULT_TIMEOUT_SECONDS = 600
+DEFAULT_TIMEOUT_SECONDS = 900
 
 
 @dataclass

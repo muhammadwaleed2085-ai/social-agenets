@@ -11,6 +11,8 @@ import logging
 import asyncio
 
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.services.media_studio import ImageService, AudioService
@@ -419,17 +421,19 @@ async def merge_videos(request: VideoMergeRequest):
         
         # Save to library database
         saved_item = await save_to_library(request.workspace_id, media_item)
+        encoded_item = jsonable_encoder(saved_item)
         
-        return VideoMergeResponse(
-            success=True,
-            url=public_url,
-            clip_count=len(request.video_urls),
-            total_duration=result.total_duration,
-            is_vertical=result.is_vertical,
-            media_item=saved_item
-        )
+        return JSONResponse(content={
+            "success": True,
+            "url": public_url,
+            "clipCount": len(request.video_urls),
+            "totalDuration": result.total_duration,
+            "isVertical": result.is_vertical,
+            "mediaItem": encoded_item,
+        })
         
     except ValueError as e:
+        logger.error(f"Merge validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         error_message = str(e)

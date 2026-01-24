@@ -408,12 +408,9 @@ async def save_canva_tokens(
             "created_at": now.isoformat()
         }
         
-        # Add optional profile info if provided
+        # Add optional profile info if provided (stored in metadata JSONB)
         if profile_info:
-            data["account_id"] = profile_info.get("id")
-            data["account_name"] = profile_info.get("display_name")
-            data["account_email"] = profile_info.get("email")
-            data["metadata"] = json.dumps(profile_info)
+            data["metadata"] = profile_info
         
         result = await db_upsert(
             table="user_integrations",
@@ -462,7 +459,7 @@ async def get_canva_connection_status(user_id: str) -> Dict[str, Any]:
     try:
         result = await db_select(
             table="user_integrations",
-            columns="expires_at, scopes, updated_at, created_at, account_id, account_name, account_email, metadata",
+            columns="expires_at, scopes, updated_at, created_at, metadata",
             filters={"user_id": user_id, "provider": "canva"},
             limit=1
         )
@@ -495,12 +492,23 @@ async def get_canva_connection_status(user_id: str) -> Dict[str, Any]:
         }
         
         # Add profile info if available (optional - works without it)
-        if data.get("account_name"):
-            response["accountName"] = data.get("account_name")
-        if data.get("account_email"):
-            response["accountEmail"] = data.get("account_email")
-        if data.get("account_id"):
-            response["accountId"] = data.get("account_id")
+        metadata = data.get("metadata") or {}
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                metadata = {}
+
+        account_name = metadata.get("display_name") or metadata.get("name")
+        account_email = metadata.get("email")
+        account_id = metadata.get("id")
+
+        if account_name:
+            response["accountName"] = account_name
+        if account_email:
+            response["accountEmail"] = account_email
+        if account_id:
+            response["accountId"] = account_id
         
         return response
         
