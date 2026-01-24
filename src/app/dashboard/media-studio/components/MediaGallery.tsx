@@ -30,6 +30,7 @@ import {
   Megaphone,
   Music,
   Palette,
+  ArrowRight,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SendToPostModal, SendConfig, MediaToSend } from './SendToPostModal';
@@ -125,6 +126,9 @@ export function MediaGallery({
     setFilters,
     toggleFavorite: contextToggleFavorite,
     deleteItem: contextDeleteItem,
+    totalItems: totalAvailableItems,
+    hasMore,
+    loadMore,
   } = useMedia();
 
   // Update context filters when local filter changes
@@ -228,7 +232,8 @@ export function MediaGallery({
       created_at: new Date(vid.createdAt).toISOString(),
     }))];
 
-  const totalItems = allItems.length;
+  const loadedItemsCount = allItems.length;
+  const totalItems = workspaceId ? totalAvailableItems : loadedItemsCount;
 
   const handleDownload = async (url: string, type: 'image' | 'video' | 'audio') => {
     try {
@@ -840,7 +845,7 @@ export function MediaGallery({
           <div>
             <h2 className="text-base font-semibold">Media Asserts</h2>
             <p className="text-xs" style={{ color: 'var(--ms-text-secondary)' }}>
-              {totalItems} items
+              {workspaceId ? `Showing ${loadedItemsCount} of ${totalItems} items` : `${totalItems} items`}
             </p>
           </div>
 
@@ -997,7 +1002,7 @@ export function MediaGallery({
       )}
 
       {/* Empty State */}
-      {totalItems === 0 && !isLoading && (
+      {loadedItemsCount === 0 && !isLoading && (
         <Card>
           <CardContent className="py-12 text-center">
             <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -1030,7 +1035,7 @@ export function MediaGallery({
       )}
 
       {/* Grid View */}
-      {viewMode === 'grid' && totalItems > 0 && !isLoading && (
+      {viewMode === 'grid' && loadedItemsCount > 0 && !isLoading && (
         <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-1">
           {allItems.map((item) => {
             const selected = isItemSelected(item.id);
@@ -1216,7 +1221,7 @@ export function MediaGallery({
       )}
 
       {/* List View */}
-      {viewMode === 'list' && totalItems > 0 && !isLoading && (
+      {viewMode === 'list' && loadedItemsCount > 0 && !isLoading && (
         <div className="space-y-2">
           {allItems.map((item) => (
             <Card key={item.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setSelectedItem(item)}>
@@ -1270,6 +1275,35 @@ export function MediaGallery({
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {workspaceId && totalItems > 0 && (
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <p className="text-xs text-muted-foreground">
+            Showing {loadedItemsCount} of {totalItems} items
+          </p>
+          {hasMore && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadMore}
+              disabled={isLoading}
+              className="h-8 px-4"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <span className="flex items-center gap-1">
+                  Load More
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              )}
+            </Button>
+          )}
         </div>
       )}
 

@@ -731,7 +731,7 @@ async def get_media_library(
         supabase = get_supabase_admin_client()
         
         # Build query
-        query = supabase.table("media_library").select("*").eq("workspace_id", workspace_id)
+        query = supabase.table("media_library").select("*", count="exact").eq("workspace_id", workspace_id)
         
         if type:
             query = query.eq("type", type)
@@ -753,7 +753,7 @@ async def get_media_library(
         
         return {
             "items": result.data or [],
-            "total": len(result.data or []),
+            "total": result.count or 0,
             "limit": limit,
             "offset": offset
         }

@@ -30,8 +30,11 @@ interface MediaContextType {
   loading: boolean;
   filters: MediaFilters;
   totalItems: number;
+  hasMore: boolean;
+  pageSize: number;
   setFilters: (filters: MediaFilters) => void;
   refreshMedia: () => Promise<void>;
+  loadMore: () => Promise<void>;
   toggleFavorite: (itemId: string) => Promise<void>;
   deleteItem: (itemId: string) => Promise<void>;
   addItem: (item: MediaItem) => void;
@@ -46,25 +49,28 @@ export function MediaProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [filters, setFiltersState] = useState<MediaFilters>({});
   const [totalItems, setTotalItems] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const pageSize = 20;
 
   // Refs for tracking data load status (like DashboardContext)
   const dataLoadedRef = useRef(false);
   const currentWorkspaceRef = useRef<string | null>(null);
 
   // Load media from Python backend
-  const loadMedia = useCallback(async (force = false) => {
+  const loadMedia = useCallback(async ({ force = false, append = false, nextOffset = 0 }: { force?: boolean; append?: boolean; nextOffset?: number } = {}) => {
     if (!user || !workspaceId) {
       return;
     }
 
     // Only load data once per workspace unless forced (same pattern as DashboardContext)
-    if (!force && dataLoadedRef.current && currentWorkspaceRef.current === workspaceId) {
+    if (!force && !append && dataLoadedRef.current && currentWorkspaceRef.current === workspaceId) {
       return;
     }
 
     try {
       // Only show loading spinner on manual refresh, not initial load
-      if (force) {
+      if (force || append) {
         setLoading(true);
       }
 
@@ -73,6 +79,8 @@ export function MediaProvider({ children }: { children: React.ReactNode }) {
         type: filters.type,
         is_favorite: filters.isFavorite,
         search: filters.search,
+        limit: pageSize,
+        offset: nextOffset,
       });
 
       // Map response to MediaItem format
@@ -90,19 +98,32 @@ export function MediaProvider({ children }: { children: React.ReactNode }) {
         created_at: item.created_at,
       })) as MediaItem[];
 
-      setMediaItems(items);
-      setTotalItems(response.total || items.length);
+      setMediaItems(prevItems => {
+        if (!append) {
+          return items;
+        }
 
-      dataLoadedRef.current = true;
-      currentWorkspaceRef.current = workspaceId;
+        const existingIds = new Set(prevItems.map(item => item.id));
+        const newItems = items.filter(item => !existingIds.has(item.id));
+        return [...prevItems, ...newItems];
+      });
+      setTotalItems(response.total || items.length);
+      const updatedOffset = nextOffset + items.length;
+      setOffset(updatedOffset);
+      setHasMore(updatedOffset < (response.total || items.length));
+
+      if (!append) {
+        dataLoadedRef.current = true;
+        currentWorkspaceRef.current = workspaceId;
+      }
     } catch (error: any) {
       console.error('Failed to load media:', error);
     } finally {
-      if (force) {
+      if (force || append) {
         setLoading(false);
       }
     }
-  }, [user, workspaceId, filters]);
+  }, [user, workspaceId, filters, pageSize]);
 
   // Initial load
   useEffect(() => {
@@ -112,9 +133,18 @@ export function MediaProvider({ children }: { children: React.ReactNode }) {
   // Set filters and reload with new filters
   const setFilters = useCallback((newFilters: MediaFilters) => {
     setFiltersState(newFilters);
+    setMediaItems([]);
+    setTotalItems(0);
+    setOffset(0);
+    setHasMore(false);
     // Reset data loaded flag when filters change to allow reload
     dataLoadedRef.current = false;
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (!workspaceId || loading || !hasMore) return;
+    await loadMedia({ force: true, append: true, nextOffset: offset });
+  }, [workspaceId, loading, hasMore, loadMedia, offset]);
 
   // Toggle favorite using Python backend
   const toggleFavorite = useCallback(async (itemId: string) => {
@@ -172,14 +202,17 @@ export function MediaProvider({ children }: { children: React.ReactNode }) {
     loading,
     filters,
     totalItems,
+    hasMore,
+    pageSize,
     setFilters,
-    refreshMedia: () => loadMedia(true),
+    refreshMedia: () => loadMedia({ force: true, append: false, nextOffset: 0 }),
+    loadMore,
     toggleFavorite,
     deleteItem,
     addItem,
   }), [
     mediaItems, loading, filters, totalItems,
-    setFilters, loadMedia, toggleFavorite, deleteItem, addItem
+    hasMore, pageSize, setFilters, loadMedia, loadMore, toggleFavorite, deleteItem, addItem
   ]);
 
   return (
